@@ -1,0 +1,185 @@
+// e-cafe.uz — ko'p-kafeli SaaS: QR-stol, POS, oshxona ekrani, yetkazib berish
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  WAITER
+  KITCHEN
+  CUSTOMER
+}
+
+enum CafeStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum TableStatus {
+  FREE
+  OCCUPIED
+  RESERVED
+}
+
+enum OrderType {
+  DINE_IN
+  DELIVERY
+  PICKUP
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  SERVED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  ONLINE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  phone        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  cafeId       String?
+  cafe         Cafe?    @relation("CafeStaff", fields: [cafeId], references: [id])
+  ownedCafe    Cafe?    @relation("CafeOwner")
+  createdOrders Order[] @relation("OrderCreatedBy")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([cafeId])
+}
+
+model Cafe {
+  id            String       @id @default(cuid())
+  name          String
+  slug          String       @unique
+  description   String?
+  logoUrl       String?
+  bannerUrl     String?
+  address       String?
+  locationUrl   String?
+  workingHours  String?
+  contactPhone  String?
+  instagramUrl  String?
+  telegramUrl   String?
+  deliveryFee   Decimal      @default(0) @db.Decimal(12, 2)
+  minOrderTotal Decimal      @default(0) @db.Decimal(12, 2)
+  status        CafeStatus   @default(PENDING)
+  ownerId       String       @unique
+  owner         User         @relation("CafeOwner", fields: [ownerId], references: [id])
+  staff         User[]       @relation("CafeStaff")
+  tables        CafeTable[]
+  categories    MenuCategory[]
+  menuItems     MenuItem[]
+  orders        Order[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model CafeTable {
+  id        String      @id @default(cuid())
+  cafeId    String
+  cafe      Cafe        @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  label     String
+  qrToken   String      @unique @default(cuid())
+  status    TableStatus @default(FREE)
+  orders    Order[]
+  createdAt DateTime    @default(now())
+
+  @@unique([cafeId, label])
+  @@index([cafeId])
+}
+
+/// Owner-defined menu section (e.g. "Issiq taomlar", "Ichimliklar").
+model MenuCategory {
+  id        String     @id @default(cuid())
+  cafeId    String
+  cafe      Cafe       @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int        @default(0)
+  items     MenuItem[]
+  createdAt DateTime   @default(now())
+
+  @@index([cafeId])
+}
+
+model MenuItem {
+  id          String       @id @default(cuid())
+  cafeId      String
+  cafe        Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    MenuCategory @relation(fields: [categoryId], references: [id])
+  name        String
+  description String?
+  price       Decimal      @db.Decimal(12, 2)
+  imageUrl    String?
+  isAvailable Boolean      @default(true)
+  prepTimeMin Int?
+  orderItems  OrderItem[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([cafeId])
+  @@index([categoryId])
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  cafeId        String
+  cafe          Cafe          @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  tableId       String?
+  table         CafeTable?    @relation(fields: [tableId], references: [id])
+  type          OrderType
+  status        OrderStatus   @default(PENDING)
+  items         OrderItem[]
+  subtotal      Decimal       @db.Decimal(12, 2)
+  deliveryFee   Decimal       @default(0) @db.Decimal(12, 2)
+  total         Decimal       @db.Decimal(12, 2)
+  paymentMethod PaymentMethod?
+  customerName  String?
+  customerPhone String?
+  address       String?
+  note          String?
+  /// Waiter/staff who entered the order via POS — null for guest self-orders (QR / online).
+  createdById   String?
+  createdBy     User?         @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([cafeId])
+  @@index([cafeId, status])
+  @@index([tableId])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId   String
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
+  qty          Int
+  priceAtOrder Decimal  @db.Decimal(12, 2)
+  note         String?
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
