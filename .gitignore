@@ -9,3 +9,6 @@ build
 .vercel
 src/generated
 dist
+
+.vercel
+.env*

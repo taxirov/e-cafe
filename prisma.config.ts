@@ -10,6 +10,9 @@ export default defineConfig({
     // Prisma CLI only (migrate/studio/generate) — the app's own PrismaClient
     // (src/lib/prisma.ts) builds its adapter straight from DATABASE_URL
     // itself and never reads this file, so this doesn't affect runtime.
-    url: process.env["DATABASE_URL"],
+    // Migrations need the *unpooled* connection: `migrate deploy` takes a
+    // Postgres advisory lock, which Neon's pooled/PgBouncer endpoint doesn't
+    // reliably support and can hang or time out on.
+    url: process.env["DATABASE_URL_UNPOOLED"] ?? process.env["DATABASE_URL"],
   },
 });
