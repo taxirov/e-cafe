@@ -23,7 +23,13 @@ export default async function WaiterPage() {
         categories={categories.map((c) => ({
           id: c.id,
           name: c.name,
-          items: c.items.map((i) => ({ id: i.id, name: i.name, price: i.price, isAvailable: i.isAvailable })),
+          items: c.items.map((i) => ({
+            id: i.id,
+            name: i.name,
+            price: i.price,
+            isAvailable: i.isAvailable,
+            variants: i.variants.map((v) => ({ id: v.id, name: v.name, price: v.price })),
+          })),
         }))}
         initialOrders={orders}
         cafeName={cafe.name}

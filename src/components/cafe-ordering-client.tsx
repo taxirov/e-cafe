@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,15 @@ import { PhoneInput } from "@/components/phone-input";
 import { placeGuestOrder } from "@/actions/orders";
 import { formatSom } from "@/lib/format";
 
+type MenuVariant = { id: string; name: string; price: unknown };
+type MenuItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: unknown;
+  imageUrl: string | null;
+  variants: MenuVariant[];
+};
 type PublicCafe = {
   id: string;
   name: string;
@@ -23,14 +33,15 @@ type PublicCafe = {
   workingHours: string | null;
   deliveryFee: unknown;
   minOrderTotal: unknown;
-  categories: {
-    id: string;
-    name: string;
-    items: { id: string; name: string; description: string | null; price: unknown; imageUrl: string | null }[];
-  }[];
+  categories: { id: string; name: string; items: MenuItem[] }[];
 };
 
 type OrderType = "DINE_IN" | "DELIVERY" | "PICKUP";
+
+/** Cart is keyed by menuItemId, or `${menuItemId}::${variantId}` when the item has variants. */
+function cartKey(itemId: string, variantId?: string | null) {
+  return variantId ? `${itemId}::${variantId}` : itemId;
+}
 
 export function CafeOrderingClient({
   cafe,
@@ -45,6 +56,7 @@ export function CafeOrderingClient({
   const [mode, setMode] = useState<OrderType>(tableLabel ? "DINE_IN" : "DELIVERY");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
+  const [variantPickerItem, setVariantPickerItem] = useState<MenuItem | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -53,19 +65,23 @@ export function CafeOrderingClient({
 
   const cartLines = Object.entries(cart)
     .filter(([, qty]) => qty > 0)
-    .map(([id, qty]) => ({ item: itemsById.get(id)!, qty }))
-    .filter((l) => l.item);
+    .map(([key, qty]) => {
+      const [itemId, variantId] = key.split("::");
+      const item = itemsById.get(itemId);
+      const variant = variantId ? item?.variants.find((v) => v.id === variantId) : undefined;
+      return { key, item, variant, qty };
+    })
+    .filter((l): l is typeof l & { item: MenuItem } => Boolean(l.item));
 
-  const subtotal = cartLines.reduce((sum, l) => sum + Number(l.item.price) * l.qty, 0);
+  const linePrice = (item: MenuItem, variant?: MenuVariant) => Number(variant ? variant.price : item.price);
+
+  const subtotal = cartLines.reduce((sum, l) => sum + linePrice(l.item, l.variant) * l.qty, 0);
   const deliveryFee = mode === "DELIVERY" ? Number(cafe.deliveryFee) : 0;
   const total = subtotal + deliveryFee;
   const cartCount = cartLines.reduce((sum, l) => sum + l.qty, 0);
 
-  function addToCart(id: string, delta: number) {
-    setCart((prev) => {
-      const next = { ...prev, [id]: Math.max(0, (prev[id] ?? 0) + delta) };
-      return next;
-    });
+  function addToCart(key: string, delta: number) {
+    setCart((prev) => ({ ...prev, [key]: Math.max(0, (prev[key] ?? 0) + delta) }));
   }
 
   function submit(formData: FormData) {
@@ -75,7 +91,7 @@ export function CafeOrderingClient({
         cafeId: cafe.id,
         type: mode,
         tableToken: mode === "DINE_IN" ? tableToken : null,
-        items: cartLines.map((l) => ({ menuItemId: l.item.id, qty: l.qty })),
+        items: cartLines.map((l) => ({ menuItemId: l.item.id, variantId: l.variant?.id ?? null, qty: l.qty })),
         customerName: formData.get("customerName") ? String(formData.get("customerName")) : null,
         customerPhone: formData.get("phone") ? String(formData.get("phone")) : null,
         address: formData.get("address") ? String(formData.get("address")) : null,
@@ -125,26 +141,47 @@ export function CafeOrderingClient({
             <h2 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">{category.name}</h2>
             <div className="space-y-2">
               {category.items.map((item) => {
-                const qty = cart[item.id] ?? 0;
+                const hasVariants = item.variants.length > 0;
+                const key = cartKey(item.id);
+                const qty = hasVariants ? 0 : (cart[key] ?? 0);
+                const itemCartQty = hasVariants
+                  ? item.variants.reduce((sum, v) => sum + (cart[cartKey(item.id, v.id)] ?? 0), 0)
+                  : qty;
+
                 return (
                   <Card key={item.id}>
                     <CardContent className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="font-medium">{item.name}</p>
-                        {item.description && <p className="truncate text-sm text-muted-foreground">{item.description}</p>}
-                        <p className="mt-1 text-sm font-semibold text-brand">{formatSom(Number(item.price))} so&apos;m</p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        {item.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.imageUrl} alt="" className="size-14 shrink-0 rounded-md object-cover" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium">{item.name}</p>
+                          {item.description && <p className="truncate text-sm text-muted-foreground">{item.description}</p>}
+                          <p className="mt-1 text-sm font-semibold text-brand">
+                            {hasVariants
+                              ? `${formatSom(Math.min(...item.variants.map((v) => Number(v.price))))} so'mdan`
+                              : `${formatSom(Number(item.price))} so'm`}
+                          </p>
+                        </div>
                       </div>
-                      {qty === 0 ? (
-                        <Button size="sm" onClick={() => addToCart(item.id, 1)}>
+
+                      {hasVariants ? (
+                        <Button size="sm" variant={itemCartQty > 0 ? "default" : "outline"} onClick={() => setVariantPickerItem(item)}>
+                          {itemCartQty > 0 ? `Tanlangan (${itemCartQty})` : "Tanlash"}
+                        </Button>
+                      ) : qty === 0 ? (
+                        <Button size="sm" onClick={() => addToCart(key, 1)}>
                           Qo&apos;shish
                         </Button>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <Button size="icon-sm" variant="outline" onClick={() => addToCart(item.id, -1)}>
+                          <Button size="icon-sm" variant="outline" onClick={() => addToCart(key, -1)}>
                             <Minus className="size-3.5" />
                           </Button>
                           <span className="w-4 text-center text-sm font-medium">{qty}</span>
-                          <Button size="icon-sm" variant="outline" onClick={() => addToCart(item.id, 1)}>
+                          <Button size="icon-sm" variant="outline" onClick={() => addToCart(key, 1)}>
                             <Plus className="size-3.5" />
                           </Button>
                         </div>
@@ -167,6 +204,43 @@ export function CafeOrderingClient({
         </div>
       )}
 
+      <Dialog open={!!variantPickerItem} onOpenChange={(open) => !open && setVariantPickerItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{variantPickerItem?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 px-1">
+            {variantPickerItem?.variants.map((v) => {
+              const key = cartKey(variantPickerItem.id, v.id);
+              const vQty = cart[key] ?? 0;
+              return (
+                <div key={v.id} className="flex items-center justify-between gap-3 rounded-lg border p-2.5">
+                  <div>
+                    <p className="text-sm font-medium">{v.name}</p>
+                    <p className="text-xs text-brand">{formatSom(Number(v.price))} so&apos;m</p>
+                  </div>
+                  {vQty === 0 ? (
+                    <Button size="sm" variant="outline" onClick={() => addToCart(key, 1)}>
+                      Qo&apos;shish
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Button size="icon-sm" variant="outline" onClick={() => addToCart(key, -1)}>
+                        <Minus className="size-3.5" />
+                      </Button>
+                      <span className="w-4 text-center text-sm font-medium">{vQty}</span>
+                      <Button size="icon-sm" variant="outline" onClick={() => addToCart(key, 1)}>
+                        <Plus className="size-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Sheet open={cartOpen} onOpenChange={setCartOpen}>
         <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto sm:max-w-2xl sm:mx-auto">
           <SheetHeader>
@@ -175,11 +249,12 @@ export function CafeOrderingClient({
           <form action={submit} className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
             <div className="space-y-2">
               {cartLines.map((l) => (
-                <div key={l.item.id} className="flex items-center justify-between text-sm">
+                <div key={l.key} className="flex items-center justify-between text-sm">
                   <span>
-                    {l.item.name} × {l.qty}
+                    {l.item.name}
+                    {l.variant ? ` (${l.variant.name})` : ""} × {l.qty}
                   </span>
-                  <span className="font-medium">{formatSom(Number(l.item.price) * l.qty)} so&apos;m</span>
+                  <span className="font-medium">{formatSom(linePrice(l.item, l.variant) * l.qty)} so&apos;m</span>
                 </div>
               ))}
               {mode === "DELIVERY" && deliveryFee > 0 && (

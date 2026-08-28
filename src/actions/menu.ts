@@ -3,22 +3,37 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireCafeStaff } from "@/lib/authz";
-import { menuCategorySchema, menuItemSchema } from "@/lib/validations";
+import { menuCategorySchema, menuItemSchema, menuItemVariantSchema } from "@/lib/validations";
 import { broadcastToCafe } from "@/lib/realtime";
 import type { ActionResult } from "./auth";
 
+const itemsWithVariants = {
+  orderBy: { createdAt: "asc" as const },
+  include: { variants: { orderBy: { sortOrder: "asc" as const } } },
+};
+
 /** Prisma's Decimal fields aren't plain objects — Client Components can only receive serializable props. */
 function serializeMenuCategories<
-  T extends { items: { price: unknown; [k: string]: unknown }[]; [k: string]: unknown },
+  T extends {
+    items: { price: unknown; variants: { price: unknown; [k: string]: unknown }[]; [k: string]: unknown }[];
+    [k: string]: unknown;
+  },
 >(categories: T[]) {
-  return categories.map((c) => ({ ...c, items: c.items.map((i) => ({ ...i, price: Number(i.price) })) }));
+  return categories.map((c) => ({
+    ...c,
+    items: c.items.map((i) => ({
+      ...i,
+      price: Number(i.price),
+      variants: i.variants.map((v) => ({ ...v, price: Number(v.price) })),
+    })),
+  }));
 }
 
 export async function listOwnerMenu() {
   const { cafeId } = await requireCafeStaff(["OWNER"]);
   const categories = await prisma.menuCategory.findMany({
     where: { cafeId },
-    include: { items: { orderBy: { createdAt: "asc" } } },
+    include: { items: itemsWithVariants },
     orderBy: { sortOrder: "asc" },
   });
   return serializeMenuCategories(categories);
@@ -29,7 +44,7 @@ export async function listStaffMenu() {
   const { cafeId } = await requireCafeStaff(["OWNER", "WAITER"]);
   const categories = await prisma.menuCategory.findMany({
     where: { cafeId },
-    include: { items: { orderBy: { createdAt: "asc" } } },
+    include: { items: itemsWithVariants },
     orderBy: { sortOrder: "asc" },
   });
   return serializeMenuCategories(categories);
@@ -107,6 +122,50 @@ export async function deleteMenuItem(id: string): Promise<ActionResult> {
   return { ok: true, data: undefined };
 }
 
+/** menuItem's own scoping (cafeId) is checked so a variant can't be attached to another cafe's item. */
+async function ownedMenuItem(cafeId: string, menuItemId: string) {
+  return prisma.menuItem.findFirst({ where: { id: menuItemId, cafeId } });
+}
+
+export async function createMenuItemVariant(menuItemId: string, input: unknown): Promise<ActionResult> {
+  const { cafeId } = await requireCafeStaff(["OWNER"]);
+  const parsed = menuItemVariantSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Xatolik" };
+
+  const item = await ownedMenuItem(cafeId, menuItemId);
+  if (!item) return { ok: false, error: "Taom topilmadi" };
+
+  const count = await prisma.menuItemVariant.count({ where: { menuItemId } });
+  await prisma.menuItemVariant.create({
+    data: { menuItemId, name: parsed.data.name, price: parsed.data.price, sortOrder: count },
+  });
+  revalidatePath("/dashboard/owner/menu");
+  revalidatePath("/[slug]", "page");
+  return { ok: true, data: undefined };
+}
+
+export async function updateMenuItemVariant(id: string, input: unknown): Promise<ActionResult> {
+  const { cafeId } = await requireCafeStaff(["OWNER"]);
+  const parsed = menuItemVariantSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Xatolik" };
+
+  const existing = await prisma.menuItemVariant.findFirst({ where: { id, menuItem: { cafeId } } });
+  if (!existing) return { ok: false, error: "Variant topilmadi" };
+
+  await prisma.menuItemVariant.update({ where: { id }, data: { name: parsed.data.name, price: parsed.data.price } });
+  revalidatePath("/dashboard/owner/menu");
+  revalidatePath("/[slug]", "page");
+  return { ok: true, data: undefined };
+}
+
+export async function deleteMenuItemVariant(id: string): Promise<ActionResult> {
+  const { cafeId } = await requireCafeStaff(["OWNER"]);
+  await prisma.menuItemVariant.deleteMany({ where: { id, menuItem: { cafeId } } });
+  revalidatePath("/dashboard/owner/menu");
+  revalidatePath("/[slug]", "page");
+  return { ok: true, data: undefined };
+}
+
 /** Public menu for the customer-facing ordering page — only available items. */
 export async function getPublicMenu(cafeSlug: string) {
   const cafe = await prisma.cafe.findUnique({
@@ -123,7 +182,7 @@ export async function getPublicMenu(cafeSlug: string) {
       minOrderTotal: true,
       categories: {
         orderBy: { sortOrder: "asc" },
-        include: { items: { where: { isAvailable: true }, orderBy: { createdAt: "asc" } } },
+        include: { items: { where: { isAvailable: true }, ...itemsWithVariants } },
       },
     },
   });

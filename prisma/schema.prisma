@@ -122,23 +122,43 @@ model MenuCategory {
 }
 
 model MenuItem {
-  id          String       @id @default(cuid())
+  id          String             @id @default(cuid())
   cafeId      String
-  cafe        Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  cafe        Cafe               @relation(fields: [cafeId], references: [id], onDelete: Cascade)
   categoryId  String
-  category    MenuCategory @relation(fields: [categoryId], references: [id])
+  category    MenuCategory       @relation(fields: [categoryId], references: [id])
   name        String
   description String?
-  price       Decimal      @db.Decimal(12, 2)
+  /// Base price — the price a customer pays when the item has no variants.
+  /// Ignored for ordering (but still shown as a "boshlab" reference) once
+  /// the item has variants, since each variant carries its own price.
+  price       Decimal            @db.Decimal(12, 2)
   imageUrl    String?
-  isAvailable Boolean      @default(true)
+  isAvailable Boolean            @default(true)
   prepTimeMin Int?
+  variants    MenuItemVariant[]
   orderItems  OrderItem[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   @@index([cafeId])
   @@index([categoryId])
+}
+
+/// A priced option for a menu item (e.g. "Kichik" / "Katta") — when an item
+/// has any variants, ordering it requires picking exactly one; its price
+/// replaces the item's base price rather than adding to it.
+model MenuItemVariant {
+  id         String      @id @default(cuid())
+  menuItemId String
+  menuItem   MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name       String
+  price      Decimal     @db.Decimal(12, 2)
+  sortOrder  Int         @default(0)
+  orderItems OrderItem[]
+  createdAt  DateTime    @default(now())
+
+  @@index([menuItemId])
 }
 
 model Order {
@@ -171,15 +191,21 @@ model Order {
 }
 
 model OrderItem {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   orderId      String
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order        Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItemId   String
-  menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItem     MenuItem         @relation(fields: [menuItemId], references: [id])
+  variantId    String?
+  variant      MenuItemVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  /// Snapshot of the variant's name at order time — stays correct on the
+  /// receipt/history even if the variant is later renamed or deleted.
+  variantName  String?
   qty          Int
-  priceAtOrder Decimal  @db.Decimal(12, 2)
+  priceAtOrder Decimal          @db.Decimal(12, 2)
   note         String?
 
   @@index([orderId])
   @@index([menuItemId])
+  @@index([variantId])
 }

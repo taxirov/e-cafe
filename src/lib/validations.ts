@@ -56,6 +56,12 @@ export const menuItemSchema = z.object({
 });
 export type MenuItemInput = z.infer<typeof menuItemSchema>;
 
+export const menuItemVariantSchema = z.object({
+  name: z.string().min(1, "Nomi kiritilishi shart").max(40, "Nom 40 ta belgidan oshmasligi kerak"),
+  price: z.coerce.number().positive("Narx musbat bo'lishi kerak"),
+});
+export type MenuItemVariantInput = z.infer<typeof menuItemVariantSchema>;
+
 export const tableSchema = z.object({
   label: z.string().min(1, "Stol nomi/raqami kiritilishi shart").max(30, "30 ta belgidan oshmasligi kerak"),
 });
@@ -96,6 +102,7 @@ export type UpdateCafeContactInput = z.infer<typeof updateCafeContactSchema>;
 
 export const cartLineSchema = z.object({
   menuItemId: z.string(),
+  variantId: z.string().optional().nullable(),
   qty: z.number().int().positive(),
   note: z.string().max(200).optional().nullable(),
 });

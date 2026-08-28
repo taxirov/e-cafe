@@ -8,22 +8,54 @@ import { broadcastToCafe, broadcastToOrder, createRealtimeToken, cafeRoom, order
 import type { ActionResult } from "./auth";
 
 const orderInclude = {
-  items: { include: { menuItem: true } },
+  items: { include: { menuItem: true, variant: true } },
   table: true,
 } as const;
 
 /** Prices are always re-read from the DB here — the client cart is never trusted for money. */
-async function priceCartItems(cafeId: string, items: { menuItemId: string; qty: number; note?: string | null }[]) {
+async function priceCartItems(
+  cafeId: string,
+  items: { menuItemId: string; variantId?: string | null; qty: number; note?: string | null }[]
+) {
   const menuItems = await prisma.menuItem.findMany({
     where: { id: { in: items.map((i) => i.menuItemId) }, cafeId, isAvailable: true },
+    include: { variants: true },
   });
   const byId = new Map(menuItems.map((m) => [m.id, m]));
 
-  const lines: { menuItemId: string; qty: number; priceAtOrder: number; note: string | null }[] = [];
+  const lines: {
+    menuItemId: string;
+    variantId: string | null;
+    variantName: string | null;
+    qty: number;
+    priceAtOrder: number;
+    note: string | null;
+  }[] = [];
   for (const line of items) {
     const item = byId.get(line.menuItemId);
     if (!item) return { ok: false as const, error: `"${line.menuItemId}" taomi hozir mavjud emas` };
-    lines.push({ menuItemId: item.id, qty: line.qty, priceAtOrder: Number(item.price), note: line.note ?? null });
+
+    if (item.variants.length > 0) {
+      const variant = item.variants.find((v) => v.id === line.variantId);
+      if (!variant) return { ok: false as const, error: `"${item.name}" uchun variant tanlanishi shart` };
+      lines.push({
+        menuItemId: item.id,
+        variantId: variant.id,
+        variantName: variant.name,
+        qty: line.qty,
+        priceAtOrder: Number(variant.price),
+        note: line.note ?? null,
+      });
+    } else {
+      lines.push({
+        menuItemId: item.id,
+        variantId: null,
+        variantName: null,
+        qty: line.qty,
+        priceAtOrder: Number(item.price),
+        note: line.note ?? null,
+      });
+    }
   }
   const subtotal = lines.reduce((sum, l) => sum + l.priceAtOrder * l.qty, 0);
   return { ok: true as const, lines, subtotal };
@@ -254,7 +286,14 @@ function serializeOrder(order: {
   createdAt: Date;
   updatedAt: Date;
   table: { id: string; label: string } | null;
-  items: { id: string; qty: number; priceAtOrder: unknown; note: string | null; menuItem: { id: string; name: string } }[];
+  items: {
+    id: string;
+    qty: number;
+    priceAtOrder: unknown;
+    note: string | null;
+    variantName: string | null;
+    menuItem: { id: string; name: string };
+  }[];
 }) {
   return {
     id: order.id,
@@ -275,7 +314,7 @@ function serializeOrder(order: {
     updatedAt: order.updatedAt.toISOString(),
     items: order.items.map((i) => ({
       id: i.id,
-      name: i.menuItem.name,
+      name: i.variantName ? `${i.menuItem.name} (${i.variantName})` : i.menuItem.name,
       qty: i.qty,
       price: Number(i.priceAtOrder),
       note: i.note,
