@@ -7,6 +7,11 @@ export const authConfig = {
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [],
+  // We serve real traffic on several hostnames at once (the apex, app.*, and
+  // every cafe's own subdomain) — without this, Auth.js ignores the actual
+  // request Host and rebuilds every internal URL from NEXTAUTH_URL alone,
+  // which is only ever correct for one of those hosts.
+  trustHost: true,
   callbacks: {
     jwt: async ({ token, user }) => {
       if (user) {
