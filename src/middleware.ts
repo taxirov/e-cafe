@@ -34,6 +34,11 @@ export default auth((req) => {
   const host = req.headers.get("host") ?? "";
   const cafeSlug = extractCafeSlug(host);
   const appHost = isAppHost(host);
+  // Built from the raw Host header rather than trusting `nextUrl`'s own
+  // origin — Auth.js's request wrapper can normalize that against
+  // NEXTAUTH_URL, which is only ever correct for one of our several
+  // real hostnames (apex, app.*, cafe subdomains, Vercel fallback URL).
+  const currentOrigin = `${nextUrl.protocol}//${host}`;
 
   // Multi-tenant subdomain rewrite: javohir.e-cafe.uz/* -> /javohir/*
   const isGlobalPath = GLOBAL_PATH_PREFIXES.some((p) => nextUrl.pathname.startsWith(p));
@@ -58,9 +63,7 @@ export default auth((req) => {
 
   // app.e-cafe.uz has no landing page of its own — "/" goes straight to login.
   if (appHost && nextUrl.pathname === "/") {
-    const url = nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/login", currentOrigin));
   }
 
   // Role-gated dashboard routes
@@ -69,22 +72,17 @@ export default auth((req) => {
     const allowedRoles = ROLE_PREFIXES[matchedPrefix];
     const role = req.auth?.user?.role;
     if (!req.auth) {
-      const loginUrl = nextUrl.clone();
-      loginUrl.pathname = "/login";
+      const loginUrl = new URL("/login", currentOrigin);
       loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
       return NextResponse.redirect(loginUrl);
     }
     if (!role || !allowedRoles.includes(role)) {
-      const homeUrl = nextUrl.clone();
-      homeUrl.pathname = "/";
-      homeUrl.search = "";
-      return NextResponse.redirect(homeUrl);
+      return NextResponse.redirect(new URL("/", currentOrigin));
     }
   } else if (nextUrl.pathname.startsWith("/dashboard")) {
     // any other /dashboard/* route just requires being signed in
     if (!req.auth) {
-      const loginUrl = nextUrl.clone();
-      loginUrl.pathname = "/login";
+      const loginUrl = new URL("/login", currentOrigin);
       loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
       return NextResponse.redirect(loginUrl);
     }
