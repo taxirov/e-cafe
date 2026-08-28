@@ -40,6 +40,20 @@ export function extractCafeSlug(host: string): string | null {
   return null;
 }
 
+/**
+ * True when the host is actually part of our own domain (the apex, an
+ * `app.`/cafe subdomain, or `*.localhost` in dev). False for anything else —
+ * a Vercel preview/fallback URL, a raw IP, etc. — where redirecting to
+ * `app.{ROOT_DOMAIN}` would just bounce the visitor to a domain that may not
+ * even be configured yet, instead of letting the page render where it is.
+ */
+export function isOwnDomainHost(host: string): boolean {
+  const hostname = host.split(":")[0].toLowerCase();
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) return true;
+  const root = ROOT_DOMAIN.toLowerCase();
+  return hostname === root || hostname.endsWith(`.${root}`);
+}
+
 /** True for app.e-cafe.uz (or app.localhost in dev) — the staff dashboard host. */
 export function isAppHost(host: string): boolean {
   const hostname = host.split(":")[0].toLowerCase();
@@ -56,11 +70,18 @@ export function appOrigin(host: string): string {
   return `https://${APP_DOMAIN}`;
 }
 
-/** Absolute origin for a cafe's public ordering page ({slug}.e-cafe.uz), matching the current environment. */
+/**
+ * Absolute URL for a cafe's public ordering page. On our own domain this is
+ * the subdomain ({slug}.e-cafe.uz); on a Vercel preview/fallback host (no
+ * subdomain routing available there) it falls back to a path on that same
+ * host ({host}/{slug}) — still a working link, just not the pretty one.
+ */
 export function cafeOrigin(slug: string, host: string): string {
   const [hostname, port] = host.split(":");
-  const isLocal = hostname.toLowerCase().endsWith(".localhost") || hostname.toLowerCase() === "localhost";
-  if (isLocal) return `http://${slug}.localhost${port ? `:${port}` : ""}`;
+  if (hostname.toLowerCase().endsWith(".localhost") || hostname.toLowerCase() === "localhost") {
+    return `http://${slug}.localhost${port ? `:${port}` : ""}`;
+  }
+  if (!isOwnDomainHost(host)) return `https://${host}/${slug}`;
   return `https://${slug}.${ROOT_DOMAIN}`;
 }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "@/auth.config";
-import { extractCafeSlug, isAppHost, appOrigin } from "@/lib/domain";
+import { extractCafeSlug, isAppHost, isOwnDomainHost, appOrigin } from "@/lib/domain";
 
 // Uses the Edge-safe auth config (no Prisma) since middleware runs on the Edge runtime.
 const { auth } = NextAuth(authConfig);
@@ -44,8 +44,11 @@ export default auth((req) => {
   }
 
   // e-cafe.uz is the public landing page — auth/dashboard pages live on
-  // app.e-cafe.uz only, so send those requests over there.
-  if (!cafeSlug && !appHost) {
+  // app.e-cafe.uz only, so send those requests over there. Only applies on
+  // our own domain — a Vercel preview/fallback host (or the custom domain
+  // before its DNS has propagated) just serves everything directly instead
+  // of redirecting to an app subdomain that may not resolve yet.
+  if (!cafeSlug && !appHost && isOwnDomainHost(host)) {
     const isAppOnlyPath = APP_ONLY_PATH_PREFIXES.some((p) => nextUrl.pathname.startsWith(p));
     if (isAppOnlyPath) {
       const url = new URL(`${nextUrl.pathname}${nextUrl.search}`, appOrigin(host));
