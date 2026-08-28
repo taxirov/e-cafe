@@ -15,6 +15,7 @@ import {
   ChefHat,
   Building2,
   Tags,
+  Utensils,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -27,6 +28,7 @@ const NAV_ITEMS: Record<string, NavItem[]> = {
   SUPER_ADMIN: [
     { href: "/dashboard/admin", label: "Kafelar", icon: Building2 },
     { href: "/dashboard/admin/categories", label: "Kategoriyalar", icon: Tags },
+    { href: "/dashboard/admin/dishes", label: "Taomlar katalogi", icon: Utensils },
   ],
   OWNER: [
     { href: "/dashboard/owner", label: "Umumiy ko'rinish", icon: LayoutDashboard },

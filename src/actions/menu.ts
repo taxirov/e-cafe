@@ -101,9 +101,9 @@ export async function searchDishCatalog(query: string) {
   }));
 }
 
-/** Owner-editable shared dish fields — changes are visible to every cafe listing this dish. */
+/** Editable shared dish fields (owner or Super Admin) — changes are visible to every cafe listing this dish. */
 export async function updateDish(id: string, input: unknown): Promise<ActionResult> {
-  await requireCafeStaff(["OWNER"]);
+  await requireRole(["OWNER", "SUPER_ADMIN"]);
   const parsed = dishSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Xatolik" };
 
@@ -120,7 +120,37 @@ export async function updateDish(id: string, input: unknown): Promise<ActionResu
     },
   });
   revalidatePath("/dashboard/owner/menu");
+  revalidatePath("/dashboard/admin/dishes");
   revalidatePath("/[slug]", "page");
+  return { ok: true, data: undefined };
+}
+
+/** Full shared dish catalog, for Super Admin oversight — which cafe created each dish and how widely it's listed. */
+export async function listAllDishes() {
+  await requireRole(["SUPER_ADMIN"]);
+  const dishes = await prisma.dishCatalog.findMany({
+    include: { category: true, createdByCafe: { select: { name: true } }, _count: { select: { menuItems: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  return dishes.map((d) => ({
+    id: d.id,
+    name: d.name,
+    description: d.description,
+    imageUrl: d.imageUrl,
+    categoryId: d.categoryId,
+    categoryName: d.category.name,
+    createdByCafeName: d.createdByCafe?.name ?? null,
+    listedByCafes: d._count.menuItems,
+  }));
+}
+
+export async function deleteDish(id: string): Promise<ActionResult> {
+  await requireRole(["SUPER_ADMIN"]);
+  const listingCount = await prisma.menuItem.count({ where: { dishId: id } });
+  if (listingCount > 0) return { ok: false, error: "Bu taomni hozir kafelar menyusida ishlatilmoqda — avval ularni olib tashlang" };
+
+  await prisma.dishCatalog.deleteMany({ where: { id } });
+  revalidatePath("/dashboard/admin/dishes");
   return { ok: true, data: undefined };
 }
 
