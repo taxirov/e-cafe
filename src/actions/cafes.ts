@@ -11,7 +11,15 @@ import type { ActionResult } from "./auth";
 export async function listCafesForAdmin() {
   await requireRole(["SUPER_ADMIN"]);
   return prisma.cafe.findMany({
-    include: { owner: { select: { fullName: true, phone: true } }, _count: { select: { tables: true, staff: true } } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      status: true,
+      createdAt: true,
+      owner: { select: { fullName: true, phone: true } },
+      _count: { select: { tables: true, staff: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 }

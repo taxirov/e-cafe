@@ -40,27 +40,40 @@ async function main() {
     console.log("8 ta stol yaratildi");
   }
 
-  const catCount = await prisma.menuCategory.count({ where: { cafeId: cafe.id } });
-  if (catCount === 0) {
-    const salads = await prisma.menuCategory.create({ data: { cafeId: cafe.id, name: "Salatlar", sortOrder: 0 } });
-    const mains = await prisma.menuCategory.create({ data: { cafeId: cafe.id, name: "Issiq taomlar", sortOrder: 1 } });
-    const drinks = await prisma.menuCategory.create({ data: { cafeId: cafe.id, name: "Ichimliklar", sortOrder: 2 } });
-    const desserts = await prisma.menuCategory.create({ data: { cafeId: cafe.id, name: "Desertlar", sortOrder: 3 } });
-
-    await prisma.menuItem.createMany({
-      data: [
-        { cafeId: cafe.id, categoryId: salads.id, name: "Achichuk salat", price: 18000, prepTimeMin: 5 },
-        { cafeId: cafe.id, categoryId: salads.id, name: "Sezar salat", price: 32000, prepTimeMin: 8 },
-        { cafeId: cafe.id, categoryId: mains.id, name: "Lag'mon", price: 35000, prepTimeMin: 15 },
-        { cafeId: cafe.id, categoryId: mains.id, name: "Osh", price: 30000, prepTimeMin: 10 },
-        { cafeId: cafe.id, categoryId: mains.id, name: "Shashlik (qo'y go'shti)", price: 25000, prepTimeMin: 20 },
-        { cafeId: cafe.id, categoryId: mains.id, name: "Manti (5 dona)", price: 28000, prepTimeMin: 18 },
-        { cafeId: cafe.id, categoryId: drinks.id, name: "Qora choy (choynak)", price: 8000, prepTimeMin: 3 },
-        { cafeId: cafe.id, categoryId: drinks.id, name: "Kola 0.5L", price: 12000, prepTimeMin: 1 },
-        { cafeId: cafe.id, categoryId: drinks.id, name: "Limonad (uy)", price: 15000, prepTimeMin: 5 },
-        { cafeId: cafe.id, categoryId: desserts.id, name: "Napoleon", price: 20000, prepTimeMin: 2 },
-      ],
+  // Categories are global (shared by every cafe) — seed them once regardless of which cafe runs first.
+  const categoryNames = ["Salatlar", "Issiq taomlar", "Ichimliklar", "Desertlar"];
+  const categories: Record<string, { id: string }> = {};
+  for (let i = 0; i < categoryNames.length; i++) {
+    categories[categoryNames[i]] = await prisma.menuCategory.upsert({
+      where: { name: categoryNames[i] },
+      update: {},
+      create: { name: categoryNames[i], sortOrder: i },
     });
+  }
+
+  const dishCount = await prisma.dishCatalog.count();
+  if (dishCount === 0) {
+    const dishSeeds: { name: string; category: string; price: number; prepTimeMin: number }[] = [
+      { name: "Achichuk salat", category: "Salatlar", price: 18000, prepTimeMin: 5 },
+      { name: "Sezar salat", category: "Salatlar", price: 32000, prepTimeMin: 8 },
+      { name: "Lag'mon", category: "Issiq taomlar", price: 35000, prepTimeMin: 15 },
+      { name: "Osh", category: "Issiq taomlar", price: 30000, prepTimeMin: 10 },
+      { name: "Shashlik (qo'y go'shti)", category: "Issiq taomlar", price: 25000, prepTimeMin: 20 },
+      { name: "Manti (5 dona)", category: "Issiq taomlar", price: 28000, prepTimeMin: 18 },
+      { name: "Qora choy (choynak)", category: "Ichimliklar", price: 8000, prepTimeMin: 3 },
+      { name: "Kola 0.5L", category: "Ichimliklar", price: 12000, prepTimeMin: 1 },
+      { name: "Limonad (uy)", category: "Ichimliklar", price: 15000, prepTimeMin: 5 },
+      { name: "Napoleon", category: "Desertlar", price: 20000, prepTimeMin: 2 },
+    ];
+
+    for (const d of dishSeeds) {
+      const dish = await prisma.dishCatalog.create({
+        data: { name: d.name, categoryId: categories[d.category].id, createdByCafeId: cafe.id },
+      });
+      await prisma.menuItem.create({
+        data: { cafeId: cafe.id, dishId: dish.id, price: d.price, prepTimeMin: d.prepTimeMin },
+      });
+    }
     console.log("Menyu (4 kategoriya, 10 taom) yaratildi");
   }
 

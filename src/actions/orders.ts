@@ -8,7 +8,7 @@ import { broadcastToCafe, broadcastToOrder, createRealtimeToken, cafeRoom, order
 import type { ActionResult } from "./auth";
 
 const orderInclude = {
-  items: { include: { menuItem: true, variant: true } },
+  items: { include: { menuItem: { include: { dish: true } }, variant: true } },
   table: true,
 } as const;
 
@@ -19,7 +19,7 @@ async function priceCartItems(
 ) {
   const menuItems = await prisma.menuItem.findMany({
     where: { id: { in: items.map((i) => i.menuItemId) }, cafeId, isAvailable: true },
-    include: { variants: true },
+    include: { variants: true, dish: true },
   });
   const byId = new Map(menuItems.map((m) => [m.id, m]));
 
@@ -37,7 +37,7 @@ async function priceCartItems(
 
     if (item.variants.length > 0) {
       const variant = item.variants.find((v) => v.id === line.variantId);
-      if (!variant) return { ok: false as const, error: `"${item.name}" uchun variant tanlanishi shart` };
+      if (!variant) return { ok: false as const, error: `"${item.dish.name}" uchun variant tanlanishi shart` };
       lines.push({
         menuItemId: item.id,
         variantId: variant.id,
@@ -292,7 +292,7 @@ function serializeOrder(order: {
     priceAtOrder: unknown;
     note: string | null;
     variantName: string | null;
-    menuItem: { id: string; name: string };
+    menuItem: { id: string; dish: { name: string } };
   }[];
 }) {
   return {
@@ -314,7 +314,7 @@ function serializeOrder(order: {
     updatedAt: order.updatedAt.toISOString(),
     items: order.items.map((i) => ({
       id: i.id,
-      name: i.variantName ? `${i.menuItem.name} (${i.variantName})` : i.menuItem.name,
+      name: i.variantName ? `${i.menuItem.dish.name} (${i.variantName})` : i.menuItem.dish.name,
       qty: i.qty,
       price: Number(i.priceAtOrder),
       note: i.note,

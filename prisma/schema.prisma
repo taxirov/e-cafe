@@ -52,25 +52,25 @@ enum PaymentMethod {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  phone        String   @unique
-  passwordHash String
-  fullName     String
-  role         Role
-  cafeId       String?
-  cafe         Cafe?    @relation("CafeStaff", fields: [cafeId], references: [id])
-  ownedCafe    Cafe?    @relation("CafeOwner")
-  createdOrders Order[] @relation("OrderCreatedBy")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  phone         String   @unique
+  passwordHash  String
+  fullName      String
+  role          Role
+  cafeId        String?
+  cafe          Cafe?    @relation("CafeStaff", fields: [cafeId], references: [id])
+  ownedCafe     Cafe?    @relation("CafeOwner")
+  createdOrders Order[]  @relation("OrderCreatedBy")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([cafeId])
 }
 
 model Cafe {
-  id            String       @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String
-  slug          String       @unique
+  slug          String        @unique
   description   String?
   logoUrl       String?
   bannerUrl     String?
@@ -80,18 +80,18 @@ model Cafe {
   contactPhone  String?
   instagramUrl  String?
   telegramUrl   String?
-  deliveryFee   Decimal      @default(0) @db.Decimal(12, 2)
-  minOrderTotal Decimal      @default(0) @db.Decimal(12, 2)
-  status        CafeStatus   @default(PENDING)
-  ownerId       String       @unique
-  owner         User         @relation("CafeOwner", fields: [ownerId], references: [id])
-  staff         User[]       @relation("CafeStaff")
+  deliveryFee   Decimal       @default(0) @db.Decimal(12, 2)
+  minOrderTotal Decimal       @default(0) @db.Decimal(12, 2)
+  status        CafeStatus    @default(PENDING)
+  ownerId       String        @unique
+  owner         User          @relation("CafeOwner", fields: [ownerId], references: [id])
+  staff         User[]        @relation("CafeStaff")
   tables        CafeTable[]
-  categories    MenuCategory[]
   menuItems     MenuItem[]
+  createdDishes DishCatalog[] @relation("DishCreatedByCafe")
   orders        Order[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
 model CafeTable {
@@ -108,41 +108,59 @@ model CafeTable {
   @@index([cafeId])
 }
 
-/// Owner-defined menu section (e.g. "Issiq taomlar", "Ichimliklar").
+/// Global menu section (e.g. "Issiq taomlar", "Ichimliklar") — Super-Admin
+/// managed and shared by every cafe, the same way e-mall's Category works.
 model MenuCategory {
-  id        String     @id @default(cuid())
-  cafeId    String
-  cafe      Cafe       @relation(fields: [cafeId], references: [id], onDelete: Cascade)
-  name      String
-  sortOrder Int        @default(0)
-  items     MenuItem[]
-  createdAt DateTime   @default(now())
-
-  @@index([cafeId])
+  id        String        @id @default(cuid())
+  name      String        @unique
+  sortOrder Int           @default(0)
+  dishes    DishCatalog[]
+  createdAt DateTime      @default(now())
 }
 
+/// Shared/global dish definition (name, description, photo) — created once
+/// (by whichever cafe adds it first, or by Super Admin) and reused by every
+/// cafe afterward, mirroring e-mall's CatalogProduct. Cafe-specific data
+/// (price, availability, prep time, variants) lives on MenuItem.
+model DishCatalog {
+  id              String       @id @default(cuid())
+  name            String
+  categoryId      String
+  category        MenuCategory @relation(fields: [categoryId], references: [id])
+  description     String?
+  imageUrl        String?
+  createdByCafeId String?
+  createdByCafe   Cafe?        @relation("DishCreatedByCafe", fields: [createdByCafeId], references: [id], onDelete: SetNull)
+  menuItems       MenuItem[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([categoryId])
+  @@index([name])
+}
+
+/// A cafe's own listing of a shared dish — its price, availability, and
+/// prep time. A cafe can list a given dish at most once (@@unique below).
 model MenuItem {
-  id          String             @id @default(cuid())
+  id          String            @id @default(cuid())
   cafeId      String
-  cafe        Cafe               @relation(fields: [cafeId], references: [id], onDelete: Cascade)
-  categoryId  String
-  category    MenuCategory       @relation(fields: [categoryId], references: [id])
-  name        String
-  description String?
+  cafe        Cafe              @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  dishId      String
+  dish        DishCatalog       @relation(fields: [dishId], references: [id])
   /// Base price — the price a customer pays when the item has no variants.
   /// Ignored for ordering (but still shown as a "boshlab" reference) once
   /// the item has variants, since each variant carries its own price.
-  price       Decimal            @db.Decimal(12, 2)
-  imageUrl    String?
-  isAvailable Boolean            @default(true)
+  price       Decimal           @db.Decimal(12, 2)
+  isAvailable Boolean           @default(true)
   prepTimeMin Int?
   variants    MenuItemVariant[]
   orderItems  OrderItem[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
+  @@unique([cafeId, dishId])
   @@index([cafeId])
-  @@index([categoryId])
+  @@index([dishId])
 }
 
 /// A priced option for a menu item (e.g. "Kichik" / "Katta") — when an item
@@ -162,17 +180,17 @@ model MenuItemVariant {
 }
 
 model Order {
-  id            String        @id @default(cuid())
+  id            String         @id @default(cuid())
   cafeId        String
-  cafe          Cafe          @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  cafe          Cafe           @relation(fields: [cafeId], references: [id], onDelete: Cascade)
   tableId       String?
-  table         CafeTable?    @relation(fields: [tableId], references: [id])
+  table         CafeTable?     @relation(fields: [tableId], references: [id])
   type          OrderType
-  status        OrderStatus   @default(PENDING)
+  status        OrderStatus    @default(PENDING)
   items         OrderItem[]
-  subtotal      Decimal       @db.Decimal(12, 2)
-  deliveryFee   Decimal       @default(0) @db.Decimal(12, 2)
-  total         Decimal       @db.Decimal(12, 2)
+  subtotal      Decimal        @db.Decimal(12, 2)
+  deliveryFee   Decimal        @default(0) @db.Decimal(12, 2)
+  total         Decimal        @db.Decimal(12, 2)
   paymentMethod PaymentMethod?
   customerName  String?
   customerPhone String?
@@ -180,9 +198,9 @@ model Order {
   note          String?
   /// Waiter/staff who entered the order via POS — null for guest self-orders (QR / online).
   createdById   String?
-  createdBy     User?         @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdBy     User?          @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([cafeId])
   @@index([cafeId, status])

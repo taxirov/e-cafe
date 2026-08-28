@@ -40,20 +40,34 @@ export const inviteStaffSchema = z.object({
 });
 export type InviteStaffInput = z.infer<typeof inviteStaffSchema>;
 
+/** Global, Super-Admin-managed menu section — shared by every cafe. */
 export const menuCategorySchema = z.object({
   name: z.string().min(1, "Nomi kiritilishi shart").max(60, "Nom 60 ta belgidan oshmasligi kerak"),
 });
 export type MenuCategoryInput = z.infer<typeof menuCategorySchema>;
 
-export const menuItemSchema = z.object({
-  categoryId: z.string().min(1, "Kategoriya tanlanishi shart"),
+/** Shared/global dish fields (name, category, description, photo) — same across every cafe that lists it. */
+export const dishSchema = z.object({
   name: z.string().min(1, "Nomi kiritilishi shart").max(100, "Nom 100 ta belgidan oshmasligi kerak"),
+  categoryId: z.string().min(1, "Kategoriya tanlanishi shart"),
   description: z.string().max(500, "Tavsif 500 ta belgidan oshmasligi kerak").optional().nullable(),
-  price: z.coerce.number().positive("Narx musbat bo'lishi kerak"),
   imageUrl: z.string().optional().nullable(),
-  prepTimeMin: z.coerce.number().int().min(0).optional().nullable(),
-  isAvailable: z.coerce.boolean().default(true),
 });
+export type DishInput = z.infer<typeof dishSchema>;
+
+/** A cafe's own listing of a dish — either an existing catalog dish (dishId) or a brand-new one (newDish), never both. */
+export const menuItemSchema = z
+  .object({
+    dishId: z.string().optional().nullable(),
+    newDish: dishSchema.optional().nullable(),
+    price: z.coerce.number().positive("Narx musbat bo'lishi kerak"),
+    prepTimeMin: z.coerce.number().int().min(0).optional().nullable(),
+    isAvailable: z.coerce.boolean().default(true),
+  })
+  .refine((d) => Boolean(d.dishId) !== Boolean(d.newDish), {
+    message: "Mavjud taomni tanlang yoki yangisini yarating",
+    path: ["dishId"],
+  });
 export type MenuItemInput = z.infer<typeof menuItemSchema>;
 
 export const menuItemVariantSchema = z.object({

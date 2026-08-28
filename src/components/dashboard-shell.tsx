@@ -14,6 +14,7 @@ import {
   Grid2x2,
   ChefHat,
   Building2,
+  Tags,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -23,7 +24,10 @@ import { cn } from "@/lib/utils";
 type NavItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
 const NAV_ITEMS: Record<string, NavItem[]> = {
-  SUPER_ADMIN: [{ href: "/dashboard/admin", label: "Kafelar", icon: Building2 }],
+  SUPER_ADMIN: [
+    { href: "/dashboard/admin", label: "Kafelar", icon: Building2 },
+    { href: "/dashboard/admin/categories", label: "Kategoriyalar", icon: Tags },
+  ],
   OWNER: [
     { href: "/dashboard/owner", label: "Umumiy ko'rinish", icon: LayoutDashboard },
     { href: "/dashboard/owner/menu", label: "Menyu", icon: UtensilsCrossed },

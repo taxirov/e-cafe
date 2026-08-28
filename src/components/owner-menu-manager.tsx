@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Plus, Trash2, Pencil, Layers } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { Plus, Trash2, Pencil, Layers, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { ImageUpload } from "@/components/image-upload";
 import {
-  createMenuCategory,
-  deleteMenuCategory,
   createMenuItem,
   updateMenuItem,
   toggleMenuItemAvailability,
@@ -20,6 +19,7 @@ import {
   createMenuItemVariant,
   updateMenuItemVariant,
   deleteMenuItemVariant,
+  searchDishCatalog,
 } from "@/actions/menu";
 import { formatSom } from "@/lib/format";
 import { useRouter } from "next/navigation";
@@ -27,6 +27,7 @@ import { useRouter } from "next/navigation";
 type VariantRow = { id: string; name: string; price: unknown };
 type ItemRow = {
   id: string;
+  dishId: string;
   categoryId: string;
   name: string;
   description: string | null;
@@ -37,6 +38,8 @@ type ItemRow = {
   variants: VariantRow[];
 };
 type CategoryRow = { id: string; name: string; items: ItemRow[] };
+type CategoryOption = { id: string; name: string };
+type DishHit = { id: string; name: string; description: string | null; imageUrl: string | null; categoryId: string; categoryName: string };
 
 function priceLabel(item: ItemRow): string {
   if (item.variants.length === 0) return `${formatSom(Number(item.price))} so'm`;
@@ -46,58 +49,17 @@ function priceLabel(item: ItemRow): string {
   return min === max ? `${formatSom(min)} so'm` : `${formatSom(min)}–${formatSom(max)} so'm`;
 }
 
-export function OwnerMenuManager({ initialCategories }: { initialCategories: CategoryRow[] }) {
+export function OwnerMenuManager({
+  initialCategories,
+  categoryOptions,
+}: {
+  initialCategories: CategoryRow[];
+  categoryOptions: CategoryOption[];
+}) {
   const router = useRouter();
-  const [categoryName, setCategoryName] = useState("");
-  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [itemDialog, setItemDialog] = useState<{ categoryId: string; item?: ItemRow } | null>(null);
+  const [itemDialog, setItemDialog] = useState<{ item?: ItemRow; presetCategoryId?: string } | null>(null);
   const [variantDialog, setVariantDialog] = useState<ItemRow | null>(null);
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  function addCategory() {
-    startTransition(async () => {
-      const result = await createMenuCategory({ name: categoryName });
-      if (result.ok) {
-        setCategoryName("");
-        setCategoryDialogOpen(false);
-        router.refresh();
-      } else {
-        setError(result.error);
-      }
-    });
-  }
-
-  function removeCategory(id: string) {
-    startTransition(async () => {
-      await deleteMenuCategory(id);
-      router.refresh();
-    });
-  }
-
-  function submitItem(formData: FormData) {
-    if (!itemDialog) return;
-    const payload = {
-      categoryId: String(formData.get("categoryId") ?? itemDialog.categoryId),
-      name: String(formData.get("name") ?? ""),
-      description: String(formData.get("description") ?? ""),
-      price: Number(formData.get("price")),
-      imageUrl: String(formData.get("imageUrl") ?? ""),
-      prepTimeMin: formData.get("prepTimeMin") ? Number(formData.get("prepTimeMin")) : null,
-      isAvailable: formData.get("isAvailable") === "on",
-    };
-    startTransition(async () => {
-      const result = itemDialog.item
-        ? await updateMenuItem(itemDialog.item.id, payload)
-        : await createMenuItem(payload);
-      if (result.ok) {
-        setItemDialog(null);
-        router.refresh();
-      } else {
-        setError(result.error);
-      }
-    });
-  }
+  const [, startTransition] = useTransition();
 
   function removeItem(id: string) {
     startTransition(async () => {
@@ -115,39 +77,13 @@ export function OwnerMenuManager({ initialCategories }: { initialCategories: Cat
 
   return (
     <div className="space-y-6">
-      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-        <DialogTrigger render={<Button size="sm" />}>
-          <Plus className="size-4" /> Kategoriya qo&apos;shish
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Yangi kategoriya</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 px-1">
-            <Label htmlFor="categoryName">Nomi</Label>
-            <Input id="categoryName" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="Masalan: Ichimliklar" />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </div>
-          <DialogFooter>
-            <Button disabled={pending || !categoryName} onClick={addCategory}>
-              Saqlash
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {initialCategories.map((category) => (
         <section key={category.id} className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">{category.name}</h2>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setItemDialog({ categoryId: category.id })}>
-                <Plus className="size-4" /> Taom
-              </Button>
-              <Button size="icon-sm" variant="ghost" onClick={() => removeCategory(category.id)}>
-                <Trash2 className="size-4 text-destructive" />
-              </Button>
-            </div>
+            <Button size="sm" variant="outline" onClick={() => setItemDialog({ presetCategoryId: category.id })}>
+              <Plus className="size-4" /> Taom
+            </Button>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {category.items.map((item) => (
@@ -171,7 +107,7 @@ export function OwnerMenuManager({ initialCategories }: { initialCategories: Cat
                     <Button size="icon-sm" variant="ghost" onClick={() => setVariantDialog(item)} title="Variantlar">
                       <Layers className="size-3.5" />
                     </Button>
-                    <Button size="icon-sm" variant="ghost" onClick={() => setItemDialog({ categoryId: category.id, item })}>
+                    <Button size="icon-sm" variant="ghost" onClick={() => setItemDialog({ item })}>
                       <Pencil className="size-3.5" />
                     </Button>
                     <Button size="icon-sm" variant="ghost" onClick={() => removeItem(item.id)}>
@@ -186,50 +122,247 @@ export function OwnerMenuManager({ initialCategories }: { initialCategories: Cat
         </section>
       ))}
 
-      <Dialog open={!!itemDialog} onOpenChange={(open) => !open && setItemDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{itemDialog?.item ? "Taomni tahrirlash" : "Yangi taom"}</DialogTitle>
-          </DialogHeader>
-          <form action={submitItem} className="space-y-3 px-1">
-            <input type="hidden" name="categoryId" value={itemDialog?.categoryId} />
-            <ImageUpload name="imageUrl" defaultUrl={itemDialog?.item?.imageUrl} label="Taom rasmi (ixtiyoriy)" />
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Nomi</Label>
-              <Input id="name" name="name" defaultValue={itemDialog?.item?.name} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="description">Tavsif</Label>
-              <Textarea id="description" name="description" defaultValue={itemDialog?.item?.description ?? ""} rows={2} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="price">
-                  Narx (so&apos;m){itemDialog?.item?.variants.length ? " — variant yo'qligida ishlatiladi" : ""}
-                </Label>
-                <Input id="price" name="price" type="number" min={0} step={500} defaultValue={itemDialog?.item ? Number(itemDialog.item.price) : undefined} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="prepTimeMin">Tayyorlanish (daqiqa)</Label>
-                <Input id="prepTimeMin" name="prepTimeMin" type="number" min={0} defaultValue={itemDialog?.item?.prepTimeMin ?? undefined} />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch id="isAvailable" name="isAvailable" defaultChecked={itemDialog?.item?.isAvailable ?? true} />
-              <Label htmlFor="isAvailable">Menyuda ko&apos;rinsin</Label>
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <DialogFooter>
-              <Button type="submit" disabled={pending}>
-                Saqlash
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {itemDialog && (
+        <ItemDialog
+          key={itemDialog.item?.id ?? `new-${itemDialog.presetCategoryId}`}
+          item={itemDialog.item}
+          presetCategoryId={itemDialog.presetCategoryId}
+          categoryOptions={categoryOptions}
+          onClose={() => setItemDialog(null)}
+        />
+      )}
 
       <VariantsDialog item={variantDialog} onClose={() => setVariantDialog(null)} />
     </div>
+  );
+}
+
+function ItemDialog({
+  item,
+  presetCategoryId,
+  categoryOptions,
+  onClose,
+}: {
+  item?: ItemRow;
+  presetCategoryId?: string;
+  categoryOptions: CategoryOption[];
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const isEdit = !!item;
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  // Create flow: search an existing dish, or fall back to defining a new one.
+  const [mode, setMode] = useState<"pick" | "create">("pick");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<DishHit[]>([]);
+  const [selectedDish, setSelectedDish] = useState<DishHit | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  // Shared dish fields (used both for "create new" and for editing an existing item's dish).
+  const [name, setName] = useState(item?.name ?? "");
+  const [categoryId, setCategoryId] = useState(item?.categoryId ?? presetCategoryId ?? categoryOptions[0]?.id ?? "");
+  const [description, setDescription] = useState(item?.description ?? "");
+  const imageUrl = item?.imageUrl ?? "";
+
+  useEffect(() => {
+    if (isEdit || mode !== "pick" || query.trim().length < 2) return;
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      setSearching(true);
+      const hits = await searchDishCatalog(query);
+      if (!cancelled) {
+        setResults(hits);
+        setSearching(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [query, mode, isEdit]);
+
+  const visibleResults = !isEdit && mode === "pick" && query.trim().length >= 2 ? results : [];
+
+  function submit(formData: FormData) {
+    setError(null);
+    const price = Number(formData.get("price"));
+    const prepTimeMin = formData.get("prepTimeMin") ? Number(formData.get("prepTimeMin")) : null;
+    const isAvailable = formData.get("isAvailable") === "on";
+
+    const payload =
+      !isEdit && mode === "pick" && selectedDish
+        ? { dishId: selectedDish.id, price, prepTimeMin, isAvailable }
+        : {
+            newDish: {
+              name: String(formData.get("name") ?? ""),
+              categoryId: String(formData.get("categoryId") ?? ""),
+              description: String(formData.get("description") ?? ""),
+              imageUrl: String(formData.get("imageUrl") ?? ""),
+            },
+            price,
+            prepTimeMin,
+            isAvailable,
+          };
+
+    startTransition(async () => {
+      const result = isEdit ? await updateMenuItem(item!.id, payload) : await createMenuItem(payload);
+      if (result.ok) {
+        onClose();
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  const needsNewDishFields = isEdit || mode === "create";
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Taomni tahrirlash" : "Yangi taom"}</DialogTitle>
+        </DialogHeader>
+        <form action={submit} className="space-y-3 px-1">
+          {!isEdit && (
+            <div className="space-y-2">
+              <div className="flex gap-1 rounded-lg bg-muted p-1 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setMode("pick")}
+                  className={`flex-1 rounded-md py-1.5 font-medium transition-colors ${mode === "pick" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                >
+                  Mavjud taomdan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("create")}
+                  className={`flex-1 rounded-md py-1.5 font-medium transition-colors ${mode === "create" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                >
+                  Yangi taom
+                </button>
+              </div>
+
+              {mode === "pick" && !selectedDish && (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      className="pl-8"
+                      placeholder="Taom nomini qidiring..."
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
+                  </div>
+                  {searching && <p className="text-xs text-muted-foreground">Qidirilmoqda...</p>}
+                  {visibleResults.length > 0 && (
+                    <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border p-1">
+                      {visibleResults.map((d) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => setSelectedDish(d)}
+                          className="flex w-full items-center gap-2 rounded-md p-1.5 text-left text-sm hover:bg-muted"
+                        >
+                          {d.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={d.imageUrl} alt="" className="size-8 rounded object-cover" />
+                          ) : (
+                            <div className="size-8 rounded bg-muted" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{d.name}</p>
+                            <p className="text-xs text-muted-foreground">{d.categoryName}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!searching && query.trim().length >= 2 && visibleResults.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Topilmadi — &quot;Yangi taom&quot;ni tanlang</p>
+                  )}
+                </div>
+              )}
+
+              {mode === "pick" && selectedDish && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border p-2">
+                  <div className="flex items-center gap-2">
+                    {selectedDish.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={selectedDish.imageUrl} alt="" className="size-10 rounded object-cover" />
+                    ) : (
+                      <div className="size-10 rounded bg-muted" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium">{selectedDish.name}</p>
+                      <p className="text-xs text-muted-foreground">{selectedDish.categoryName}</p>
+                    </div>
+                  </div>
+                  <Button size="icon-sm" variant="ghost" type="button" onClick={() => setSelectedDish(null)}>
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {needsNewDishFields && (
+            <>
+              <ImageUpload name="imageUrl" defaultUrl={imageUrl} label="Taom rasmi (ixtiyoriy)" />
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Nomi {isEdit && <span className="text-xs text-muted-foreground">(barcha kafelar uchun umumiy)</span>}</Label>
+                <Input id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Kategoriya</Label>
+                <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input type="hidden" name="categoryId" value={categoryId} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="description">Tavsif</Label>
+                <Textarea id="description" name="description" value={description ?? ""} onChange={(e) => setDescription(e.target.value)} rows={2} />
+              </div>
+            </>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="price">
+                Narx (so&apos;m){item?.variants.length ? " — variant yo'qligida ishlatiladi" : ""}
+              </Label>
+              <Input id="price" name="price" type="number" min={0} step={500} defaultValue={item ? Number(item.price) : undefined} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prepTimeMin">Tayyorlanish (daqiqa)</Label>
+              <Input id="prepTimeMin" name="prepTimeMin" type="number" min={0} defaultValue={item?.prepTimeMin ?? undefined} />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="isAvailable" name="isAvailable" defaultChecked={item?.isAvailable ?? true} />
+            <Label htmlFor="isAvailable">Menyuda ko&apos;rinsin</Label>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="submit" disabled={pending || (!isEdit && mode === "pick" && !selectedDish)}>
+              Saqlash
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
