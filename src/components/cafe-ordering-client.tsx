@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, ShoppingCart, MapPin, Clock } from "lucide-react";
+import { Minus, Plus, ShoppingCart, MapPin, Clock, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,25 @@ export function CafeOrderingClient({
   const [variantPickerItem, setVariantPickerItem] = useState<MenuItem | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  function shareLocation() {
+    setLocating(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      () => {
+        setLocationError("Joylashuvni aniqlab bo'lmadi — brauzer ruxsatini tekshiring");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   const allItems = useMemo(() => cafe.categories.flatMap((c) => c.items), [cafe.categories]);
   const itemsById = useMemo(() => new Map(allItems.map((i) => [i.id, i])), [allItems]);
@@ -95,6 +114,8 @@ export function CafeOrderingClient({
         customerName: formData.get("customerName") ? String(formData.get("customerName")) : null,
         customerPhone: formData.get("phone") ? String(formData.get("phone")) : null,
         address: formData.get("address") ? String(formData.get("address")) : null,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
         note: formData.get("note") ? String(formData.get("note")) : null,
       });
       if (!result.ok) {
@@ -283,6 +304,18 @@ export function CafeOrderingClient({
                   <div className="space-y-2">
                     <Label htmlFor="address">Manzil</Label>
                     <Textarea id="address" name="address" required rows={2} />
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={shareLocation} disabled={locating}>
+                        {coords && <Check className="size-3.5" />}
+                        {locating ? "Aniqlanmoqda..." : coords ? "Joylashuv ulashildi" : "Joriy joylashuvimni ulashish"}
+                      </Button>
+                    </div>
+                    {locationError && <p className="text-xs text-destructive">{locationError}</p>}
+                    {!coords && !locationError && (
+                      <p className="text-xs text-muted-foreground">
+                        Kuryer sizni tezroq topishi uchun joylashuvingizni ulashing
+                      </p>
+                    )}
                   </div>
                 )}
               </>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, ChefHat, Bell, PartyPopper, XCircle } from "lucide-react";
+import { CheckCircle2, Circle, ChefHat, Bell, PartyPopper, XCircle, Bike, Phone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { getGuestOrderRealtimeToken, type SerializedOrder } from "@/actions/orders";
 import { useRealtime } from "@/hooks/use-realtime";
@@ -15,6 +15,13 @@ const STEPS: { status: string; label: string; icon: React.ComponentType<{ classN
   { status: "READY", label: "Tayyor", icon: Bell },
   { status: "SERVED", label: "Yetkazildi", icon: PartyPopper },
 ];
+
+const COURIER_STATUS_LABELS: Record<string, string> = {
+  searching: "Kuryer qidirilmoqda",
+  assigned: "Kuryer topildi",
+  picked_up: "Kuryer yo'lda",
+  delivered: "Yetkazildi",
+};
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "Qabul qilindi",
@@ -78,6 +85,29 @@ export function OrderTracker({ initialOrder }: { initialOrder: SerializedOrder }
                 );
               })}
             </ol>
+          </CardContent>
+        </Card>
+      )}
+
+      {order.type === "DELIVERY" && order.courierStatus && (
+        <Card>
+          <CardContent className="flex items-center gap-3 py-4">
+            <Bike className="size-6 shrink-0 text-brand" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {COURIER_STATUS_LABELS[order.courierStatus] ?? order.courierStatus}
+              </p>
+              {order.courierName && (
+                <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  {order.courierName}
+                  {order.courierPhone && (
+                    <>
+                      <Phone className="size-3" /> {order.courierPhone}
+                    </>
+                  )}
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

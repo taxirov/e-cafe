@@ -104,6 +104,8 @@ export type UpdateCafeIdentityInput = z.infer<typeof updateCafeIdentitySchema>;
 
 export const updateCafeContactSchema = z.object({
   address: z.string().max(300, "Manzil 300 ta belgidan oshmasligi kerak").optional().nullable(),
+  latitude: z.coerce.number().min(-90).max(90).optional().nullable(),
+  longitude: z.coerce.number().min(-180).max(180).optional().nullable(),
   locationUrl: optionalUrl,
   workingHours: z.string().max(200, "Ish vaqti 200 ta belgidan oshmasligi kerak").optional().nullable(),
   contactPhone: optionalPhone,
@@ -134,6 +136,8 @@ export const placeGuestOrderSchema = z
     customerName: z.string().max(80).optional().nullable(),
     customerPhone: z.string().optional().nullable(),
     address: z.string().max(300).optional().nullable(),
+    latitude: z.coerce.number().min(-90).max(90).optional().nullable(),
+    longitude: z.coerce.number().min(-180).max(180).optional().nullable(),
     note: z.string().max(300).optional().nullable(),
   })
   .refine((d) => d.type !== "DINE_IN" || Boolean(d.tableToken), {
@@ -143,6 +147,10 @@ export const placeGuestOrderSchema = z
   .refine((d) => d.type === "DINE_IN" || Boolean(d.address || d.type === "PICKUP"), {
     message: "Yetkazib berish manzilini kiriting",
     path: ["address"],
+  })
+  .refine((d) => d.type !== "DELIVERY" || (d.latitude != null && d.longitude != null), {
+    message: "Kuryer topilishi uchun joylashuvingizni ulashing",
+    path: ["latitude"],
   });
 export type PlaceGuestOrderInput = z.infer<typeof placeGuestOrderSchema>;
 

@@ -13,6 +13,8 @@ export default async function OwnerSettingsPage() {
           slug: cafe.slug,
           description: cafe.description,
           address: cafe.address,
+          latitude: cafe.latitude,
+          longitude: cafe.longitude,
           locationUrl: cafe.locationUrl,
           workingHours: cafe.workingHours,
           contactPhone: cafe.contactPhone,

@@ -65,7 +65,8 @@ async function priceCartItems(
 export async function placeGuestOrder(input: unknown): Promise<ActionResult<{ orderId: string }>> {
   const parsed = placeGuestOrderSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Xatolik" };
-  const { cafeId, type, tableToken, items, customerName, customerPhone, address, note } = parsed.data;
+  const { cafeId, type, tableToken, items, customerName, customerPhone, address, latitude, longitude, note } =
+    parsed.data;
 
   const cafe = await prisma.cafe.findUnique({ where: { id: cafeId } });
   if (!cafe || cafe.status !== "ACTIVE") return { ok: false, error: "Kafe hozircha buyurtma qabul qilmayapti" };
@@ -99,6 +100,8 @@ export async function placeGuestOrder(input: unknown): Promise<ActionResult<{ or
         customerName: customerName || null,
         customerPhone: customerPhone || null,
         address: address || null,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
         note: note || null,
         items: { create: priced.lines },
       },
@@ -158,6 +161,64 @@ export async function placeStaffOrder(input: unknown): Promise<ActionResult<{ or
   return { ok: true, data: { orderId: order.id } };
 }
 
+/**
+ * Sends a READY delivery order to e-courier.uz so it can find the nearest
+ * available courier. Best-effort: missing coordinates or a network/API
+ * failure are logged and swallowed rather than blocking the kitchen from
+ * marking the order ready.
+ */
+async function dispatchToCourier(orderId: string, cafeId: string) {
+  const [order, cafe] = await Promise.all([
+    prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, address: true, latitude: true, longitude: true },
+    }),
+    prisma.cafe.findUnique({
+      where: { id: cafeId },
+      select: { address: true, latitude: true, longitude: true },
+    }),
+  ]);
+  if (!order?.latitude || !order.longitude || !cafe?.latitude || !cafe.longitude) {
+    console.error(`e-courier dispatch skipped for order ${orderId}: missing coordinates`);
+    return;
+  }
+
+  const apiUrl = process.env.ECOURIER_API_URL;
+  const secret = process.env.ECOURIER_WEBHOOK_SECRET;
+  if (!apiUrl || !secret) {
+    console.error(`e-courier dispatch skipped for order ${orderId}: ECOURIER_API_URL/ECOURIER_WEBHOOK_SECRET not set`);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${apiUrl}/webhooks/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Webhook-Secret": secret },
+      body: JSON.stringify({
+        source: "e-cafe",
+        externalOrderId: order.id,
+        pickup: { lat: cafe.latitude, lng: cafe.longitude },
+        pickupAddress: cafe.address,
+        dropoff: { lat: order.latitude, lng: order.longitude },
+        dropoffAddress: order.address,
+        callbackUrl: `${process.env.NEXTAUTH_URL}/api/courier-webhook`,
+      }),
+    });
+    if (!res.ok) {
+      console.error(`e-courier dispatch failed for order ${orderId}: HTTP ${res.status}`);
+      return;
+    }
+    const dispatched = (await res.json()) as { id: string };
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { courierOrderId: dispatched.id, courierStatus: "searching" },
+    });
+    await broadcastToOrder(orderId, "order:updated", await getGuestOrder(orderId));
+  } catch (err) {
+    console.error(`e-courier dispatch error for order ${orderId}:`, err);
+  }
+}
+
 export async function updateOrderStatus(orderId: string, status: OrderStatusValue): Promise<ActionResult> {
   const { cafeId } = await requireCafeStaff(["OWNER", "WAITER", "KITCHEN"]);
   if (!ORDER_STATUSES.includes(status)) return { ok: false, error: "Noto'g'ri holat" };
@@ -183,6 +244,9 @@ export async function updateOrderStatus(orderId: string, status: OrderStatusValu
   await broadcastToCafe(cafeId, "order:updated", serializeOrder(order));
   await broadcastToOrder(orderId, "order:updated", serializeOrder(order));
   if (freedTableId) await broadcastToCafe(cafeId, "table:updated", { id: freedTableId, status: "FREE" });
+  if (order.type === "DELIVERY" && status === "READY") {
+    dispatchToCourier(orderId, cafeId).catch((err) => console.error(err));
+  }
   revalidatePath("/dashboard/waiter");
   revalidatePath("/dashboard/kitchen");
   revalidatePath("/dashboard/owner");
@@ -282,6 +346,9 @@ function serializeOrder(order: {
   customerName: string | null;
   customerPhone: string | null;
   address: string | null;
+  courierStatus: string | null;
+  courierName: string | null;
+  courierPhone: string | null;
   note: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -309,6 +376,9 @@ function serializeOrder(order: {
     customerName: order.customerName,
     customerPhone: order.customerPhone,
     address: order.address,
+    courierStatus: order.courierStatus,
+    courierName: order.courierName,
+    courierPhone: order.courierPhone,
     note: order.note,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),

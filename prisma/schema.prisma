@@ -75,6 +75,8 @@ model Cafe {
   logoUrl       String?
   bannerUrl     String?
   address       String?
+  latitude      Float?
+  longitude     Float?
   locationUrl   String?
   workingHours  String?
   contactPhone  String?
@@ -195,10 +197,18 @@ model Order {
   customerName  String?
   customerPhone String?
   address       String?
+  latitude      Float?
+  longitude     Float?
   note          String?
   /// Waiter/staff who entered the order via POS — null for guest self-orders (QR / online).
   createdById   String?
   createdBy     User?          @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  /// e-courier.uz order id once a DELIVERY order has been dispatched to a courier.
+  courierOrderId String?
+  /// Last delivery-leg status reported by e-courier.uz: searching/assigned/picked_up/delivered.
+  courierStatus  String?
+  courierName    String?
+  courierPhone   String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 

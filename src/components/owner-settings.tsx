@@ -14,6 +14,8 @@ type Cafe = {
   slug: string;
   description: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   locationUrl: string | null;
   workingHours: string | null;
   contactPhone: string | null;
@@ -29,6 +31,22 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
   const [contactPending, startContact] = useTransition();
   const [identityError, setIdentityError] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    cafe.latitude != null && cafe.longitude != null ? { lat: cafe.latitude, lng: cafe.longitude } : null
+  );
+  const [locating, setLocating] = useState(false);
+
+  function locate() {
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   function submitIdentity(formData: FormData) {
     setIdentityError(null);
@@ -48,6 +66,8 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
     startContact(async () => {
       const result = await updateCafeContact({
         address: String(formData.get("address") ?? ""),
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
         locationUrl: String(formData.get("locationUrl") ?? ""),
         workingHours: String(formData.get("workingHours") ?? ""),
         contactPhone: String(formData.get("contactPhone") ?? ""),
@@ -98,6 +118,24 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
             <div className="space-y-1.5">
               <Label htmlFor="address">Manzil</Label>
               <Input id="address" name="address" defaultValue={cafe.address ?? ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Joylashuv (kuryerlar uchun)</Label>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={locate} disabled={locating}>
+                  {locating ? "Aniqlanmoqda..." : "Joriy joylashuvni aniqlash"}
+                </Button>
+                {coords && (
+                  <span className="text-xs text-muted-foreground">
+                    {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                  </span>
+                )}
+              </div>
+              {!coords && (
+                <p className="text-xs text-muted-foreground">
+                  Kafeda turgan holda tugmani bosing — bu koordinata kuryer eng yaqin kuryerni topishi uchun kerak.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="workingHours">Ish vaqti</Label>

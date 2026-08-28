@@ -69,13 +69,25 @@ export async function updateCafeContact(input: unknown): Promise<ActionResult> {
 
   const parsed = updateCafeContactSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Xatolik" };
-  const { address, locationUrl, workingHours, contactPhone, instagramUrl, telegramUrl, deliveryFee, minOrderTotal } =
-    parsed.data;
+  const {
+    address,
+    latitude,
+    longitude,
+    locationUrl,
+    workingHours,
+    contactPhone,
+    instagramUrl,
+    telegramUrl,
+    deliveryFee,
+    minOrderTotal,
+  } = parsed.data;
 
   await prisma.cafe.update({
     where: { id: cafeId },
     data: {
       address: address || null,
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
       locationUrl: locationUrl || null,
       workingHours: workingHours || null,
       contactPhone: contactPhone || null,
