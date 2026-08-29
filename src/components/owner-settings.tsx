@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LocationPicker } from "@/components/location-picker";
 import { updateCafeIdentity, updateCafeContact } from "@/actions/cafes";
 
 type Cafe = {
@@ -34,19 +35,6 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     cafe.latitude != null && cafe.longitude != null ? { lat: cafe.latitude, lng: cafe.longitude } : null
   );
-  const [locating, setLocating] = useState(false);
-
-  function locate() {
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocating(false);
-      },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }
 
   function submitIdentity(formData: FormData) {
     setIdentityError(null);
@@ -121,21 +109,7 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
             </div>
             <div className="space-y-1.5">
               <Label>Joylashuv (kuryerlar uchun)</Label>
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={locate} disabled={locating}>
-                  {locating ? "Aniqlanmoqda..." : "Joriy joylashuvni aniqlash"}
-                </Button>
-                {coords && (
-                  <span className="text-xs text-muted-foreground">
-                    {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-                  </span>
-                )}
-              </div>
-              {!coords && (
-                <p className="text-xs text-muted-foreground">
-                  Kafeda turgan holda tugmani bosing — bu koordinata kuryer eng yaqin kuryerni topishi uchun kerak.
-                </p>
-              )}
+              <LocationPicker value={coords} onChange={setCoords} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="workingHours">Ish vaqti</Label>
