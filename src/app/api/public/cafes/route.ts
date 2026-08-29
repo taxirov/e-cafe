@@ -20,6 +20,7 @@ export async function GET() {
         slug: true,
         description: true,
         logoUrl: true,
+        bannerUrl: true,
         address: true,
         latitude: true,
         longitude: true,
