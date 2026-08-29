@@ -15,6 +15,8 @@ export default async function OwnerSettingsPage() {
           address: cafe.address,
           latitude: cafe.latitude,
           longitude: cafe.longitude,
+          serviceRadiusKm: cafe.serviceRadiusKm,
+          servicePolygon: cafe.servicePolygon as { lat: number; lng: number }[] | null,
           locationUrl: cafe.locationUrl,
           workingHours: cafe.workingHours,
           contactPhone: cafe.contactPhone,

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationPicker } from "@/components/location-picker";
+import type { ServiceMode } from "@/components/location-picker-inner";
 import { updateCafeIdentity, updateCafeContact } from "@/actions/cafes";
 
 type Cafe = {
@@ -17,6 +18,8 @@ type Cafe = {
   address: string | null;
   latitude: number | null;
   longitude: number | null;
+  serviceRadiusKm: number | null;
+  servicePolygon: { lat: number; lng: number }[] | null;
   locationUrl: string | null;
   workingHours: string | null;
   contactPhone: string | null;
@@ -35,6 +38,11 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     cafe.latitude != null && cafe.longitude != null ? { lat: cafe.latitude, lng: cafe.longitude } : null
   );
+  const [serviceMode, setServiceMode] = useState<ServiceMode>(
+    cafe.servicePolygon && cafe.servicePolygon.length >= 3 ? "polygon" : "radius"
+  );
+  const [radiusKm, setRadiusKm] = useState<number | null>(cafe.serviceRadiusKm);
+  const [polygon, setPolygon] = useState(cafe.servicePolygon ?? []);
 
   function submitIdentity(formData: FormData) {
     setIdentityError(null);
@@ -56,6 +64,8 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
         address: String(formData.get("address") ?? ""),
         latitude: coords?.lat ?? null,
         longitude: coords?.lng ?? null,
+        serviceRadiusKm: serviceMode === "radius" ? radiusKm : null,
+        servicePolygon: serviceMode === "polygon" ? polygon : null,
         locationUrl: String(formData.get("locationUrl") ?? ""),
         workingHours: String(formData.get("workingHours") ?? ""),
         contactPhone: String(formData.get("contactPhone") ?? ""),
@@ -108,8 +118,17 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
               <Input id="address" name="address" defaultValue={cafe.address ?? ""} />
             </div>
             <div className="space-y-1.5">
-              <Label>Joylashuv (kuryerlar uchun)</Label>
-              <LocationPicker value={coords} onChange={setCoords} />
+              <Label>Joylashuv va xizmat hududi (kuryerlar uchun)</Label>
+              <LocationPicker
+                value={coords}
+                onChange={setCoords}
+                serviceMode={serviceMode}
+                onServiceModeChange={setServiceMode}
+                radiusKm={radiusKm}
+                onRadiusKmChange={setRadiusKm}
+                polygon={polygon}
+                onPolygonChange={setPolygon}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="workingHours">Ish vaqti</Label>

@@ -23,6 +23,8 @@ export async function GET() {
         address: true,
         latitude: true,
         longitude: true,
+        serviceRadiusKm: true,
+        servicePolygon: true,
       },
     });
     return NextResponse.json({ cafes });

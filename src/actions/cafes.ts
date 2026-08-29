@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { requireRole, requireCafeStaff } from "@/lib/authz";
 import { updateCafeIdentitySchema, updateCafeContactSchema } from "@/lib/validations";
 import { isReservedSlug } from "@/lib/domain";
@@ -73,6 +74,8 @@ export async function updateCafeContact(input: unknown): Promise<ActionResult> {
     address,
     latitude,
     longitude,
+    serviceRadiusKm,
+    servicePolygon,
     locationUrl,
     workingHours,
     contactPhone,
@@ -88,6 +91,8 @@ export async function updateCafeContact(input: unknown): Promise<ActionResult> {
       address: address || null,
       latitude: latitude ?? null,
       longitude: longitude ?? null,
+      serviceRadiusKm: serviceRadiusKm ?? null,
+      servicePolygon: servicePolygon ?? Prisma.JsonNull,
       locationUrl: locationUrl || null,
       workingHours: workingHours || null,
       contactPhone: contactPhone || null,

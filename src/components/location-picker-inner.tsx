@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Circle, Polygon, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -16,11 +16,22 @@ const markerIcon = new L.Icon({
 });
 
 type Coords = { lat: number; lng: number };
+export type ServiceMode = "radius" | "polygon";
 
-function ClickHandler({ onPick }: { onPick: (coords: Coords) => void }) {
+function ClickHandler({
+  mode,
+  onPickCenter,
+  onAddPolygonPoint,
+}: {
+  mode: ServiceMode;
+  onPickCenter: (coords: Coords) => void;
+  onAddPolygonPoint: (coords: Coords) => void;
+}) {
   useMapEvents({
     click(e) {
-      onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+      const coords = { lat: e.latlng.lat, lng: e.latlng.lng };
+      if (mode === "polygon") onAddPolygonPoint(coords);
+      else onPickCenter(coords);
     },
   });
   return null;
@@ -42,33 +53,37 @@ export default function LocationPickerInner({
   defaultCenter,
   defaultZoom,
   height,
+  mode,
+  radiusKm,
+  polygon,
+  onAddPolygonPoint,
 }: {
   value: Coords | null;
   onChange: (coords: Coords) => void;
   defaultCenter: Coords;
   defaultZoom: number;
   height: number;
+  mode: ServiceMode;
+  radiusKm: number | null;
+  polygon: Coords[];
+  onAddPolygonPoint: (coords: Coords) => void;
 }) {
   const center = value ?? defaultCenter;
 
   return (
     <div className="overflow-hidden rounded-lg border" style={{ height }}>
-      <MapContainer
-        center={[center.lat, center.lng]}
-        zoom={value ? 15 : defaultZoom}
-        style={{ height: "100%", width: "100%" }}
-      >
+      <MapContainer center={[center.lat, center.lng]} zoom={value ? 14 : defaultZoom} style={{ height: "100%", width: "100%" }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <ClickHandler onPick={onChange} />
+        <ClickHandler mode={mode} onPickCenter={onChange} onAddPolygonPoint={onAddPolygonPoint} />
         {value && (
           <>
             <Marker
               position={[value.lat, value.lng]}
               icon={markerIcon}
-              draggable
+              draggable={mode === "radius"}
               eventHandlers={{
                 dragend: (e) => {
                   const pos = e.target.getLatLng();
@@ -78,6 +93,12 @@ export default function LocationPickerInner({
             />
             <FlyToValue lat={value.lat} lng={value.lng} />
           </>
+        )}
+        {mode === "radius" && value && radiusKm != null && radiusKm > 0 && (
+          <Circle center={[value.lat, value.lng]} radius={radiusKm * 1000} pathOptions={{ color: "#1c54d6" }} />
+        )}
+        {mode === "polygon" && polygon.length >= 3 && (
+          <Polygon positions={polygon.map((p) => [p.lat, p.lng])} pathOptions={{ color: "#1c54d6" }} />
         )}
       </MapContainer>
     </div>

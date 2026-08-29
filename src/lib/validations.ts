@@ -102,10 +102,18 @@ export const updateCafeIdentitySchema = z.object({
 });
 export type UpdateCafeIdentityInput = z.infer<typeof updateCafeIdentitySchema>;
 
+const optionalServicePolygon = z
+  .array(z.object({ lat: z.number(), lng: z.number() }))
+  .nullable()
+  .optional()
+  .transform((v) => (v && v.length >= 3 ? v : null));
+
 export const updateCafeContactSchema = z.object({
   address: z.string().max(300, "Manzil 300 ta belgidan oshmasligi kerak").optional().nullable(),
   latitude: z.coerce.number().min(-90).max(90).optional().nullable(),
   longitude: z.coerce.number().min(-180).max(180).optional().nullable(),
+  serviceRadiusKm: z.coerce.number().min(0).optional().nullable(),
+  servicePolygon: optionalServicePolygon,
   locationUrl: optionalUrl,
   workingHours: z.string().max(200, "Ish vaqti 200 ta belgidan oshmasligi kerak").optional().nullable(),
   contactPhone: optionalPhone,
