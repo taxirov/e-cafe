@@ -121,6 +121,7 @@ export const updateCafeContactSchema = z.object({
   telegramUrl: optionalUrl,
   deliveryFee: z.coerce.number().min(0, "Manfiy bo'lishi mumkin emas").default(0),
   minOrderTotal: z.coerce.number().min(0, "Manfiy bo'lishi mumkin emas").default(0),
+  useEcourier: z.boolean().default(true),
 });
 export type UpdateCafeContactInput = z.infer<typeof updateCafeContactSchema>;
 

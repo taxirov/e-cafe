@@ -175,9 +175,10 @@ async function dispatchToCourier(orderId: string, cafeId: string) {
     }),
     prisma.cafe.findUnique({
       where: { id: cafeId },
-      select: { address: true, latitude: true, longitude: true },
+      select: { address: true, latitude: true, longitude: true, useEcourier: true },
     }),
   ]);
+  if (!cafe?.useEcourier) return;
   if (!order?.latitude || !order.longitude || !cafe?.latitude || !cafe.longitude) {
     console.error(`e-courier dispatch skipped for order ${orderId}: missing coordinates`);
     return;

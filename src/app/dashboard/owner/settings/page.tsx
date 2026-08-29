@@ -24,6 +24,7 @@ export default async function OwnerSettingsPage() {
           telegramUrl: cafe.telegramUrl,
           deliveryFee: cafe.deliveryFee,
           minOrderTotal: cafe.minOrderTotal,
+          useEcourier: cafe.useEcourier,
         }}
       />
     </div>

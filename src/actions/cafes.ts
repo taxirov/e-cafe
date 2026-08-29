@@ -83,6 +83,7 @@ export async function updateCafeContact(input: unknown): Promise<ActionResult> {
     telegramUrl,
     deliveryFee,
     minOrderTotal,
+    useEcourier,
   } = parsed.data;
 
   await prisma.cafe.update({
@@ -100,6 +101,7 @@ export async function updateCafeContact(input: unknown): Promise<ActionResult> {
       telegramUrl: telegramUrl || null,
       deliveryFee,
       minOrderTotal,
+      useEcourier,
     },
   });
 

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { LocationPicker } from "@/components/location-picker";
 import type { ServiceMode } from "@/components/location-picker-inner";
 import { updateCafeIdentity, updateCafeContact } from "@/actions/cafes";
@@ -27,6 +28,7 @@ type Cafe = {
   telegramUrl: string | null;
   deliveryFee: unknown;
   minOrderTotal: unknown;
+  useEcourier: boolean;
 };
 
 export function OwnerSettings({ cafe }: { cafe: Cafe }) {
@@ -43,6 +45,7 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
   );
   const [radiusKm, setRadiusKm] = useState<number | null>(cafe.serviceRadiusKm);
   const [polygon, setPolygon] = useState(cafe.servicePolygon ?? []);
+  const [useEcourier, setUseEcourier] = useState(cafe.useEcourier);
 
   function submitIdentity(formData: FormData) {
     setIdentityError(null);
@@ -73,6 +76,7 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
         telegramUrl: String(formData.get("telegramUrl") ?? ""),
         deliveryFee: Number(formData.get("deliveryFee") ?? 0),
         minOrderTotal: Number(formData.get("minOrderTotal") ?? 0),
+        useEcourier,
       });
       if (!result.ok) setContactError(result.error);
       else router.refresh();
@@ -129,6 +133,16 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
                 polygon={polygon}
                 onPolygonChange={setPolygon}
               />
+            </div>
+            <div className="flex items-center gap-2 rounded-md border p-3">
+              <Switch id="useEcourier" checked={useEcourier} onCheckedChange={setUseEcourier} />
+              <div>
+                <Label htmlFor="useEcourier">Buyurtmalarni e-courier orqali yetkazish</Label>
+                <p className="text-xs text-muted-foreground">
+                  O&apos;chirilsa, &quot;Tayyor&quot; deb belgilangan buyurtmalar kuryerga avtomatik uzatilmaydi — o&apos;z
+                  kuryeringiz bilan yetkazasiz.
+                </p>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="workingHours">Ish vaqti</Label>

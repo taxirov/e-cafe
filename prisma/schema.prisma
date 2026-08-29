@@ -84,6 +84,7 @@ model Cafe {
   contactPhone  String?
   instagramUrl  String?
   telegramUrl   String?
+  useEcourier   Boolean       @default(true)
   deliveryFee   Decimal       @default(0) @db.Decimal(12, 2)
   minOrderTotal Decimal       @default(0) @db.Decimal(12, 2)
   status        CafeStatus    @default(PENDING)
