@@ -7,16 +7,22 @@ import { completeCafeRegistration } from "@/actions/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PhoneInput } from "@/components/phone-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function RegisterCafeForm() {
   const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   function handleSubmit(formData: FormData) {
     setError(null);
+    if (!agreed) {
+      setError("Davom etish uchun ommaviy oferta va foydalanish shartlariga rozilik bildiring");
+      return;
+    }
     startTransition(async () => {
       const result = await completeCafeRegistration({
         fullName: String(formData.get("fullName") ?? ""),
@@ -56,8 +62,25 @@ export function RegisterCafeForm() {
             <Label htmlFor="password">Parol</Label>
             <Input id="password" name="password" type="password" minLength={6} required />
           </div>
+          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Checkbox checked={agreed} onCheckedChange={() => setAgreed((v) => !v)} className="mt-0.5" />
+            <span>
+              <Link href="/offer" target="_blank" className="underline underline-offset-4">
+                Ommaviy oferta
+              </Link>
+              ,{" "}
+              <Link href="/terms" target="_blank" className="underline underline-offset-4">
+                foydalanish shartlari
+              </Link>{" "}
+              va{" "}
+              <Link href="/privacy" target="_blank" className="underline underline-offset-4">
+                maxfiylik siyosati
+              </Link>
+              ga roziman
+            </span>
+          </label>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={pending}>
+          <Button type="submit" className="w-full" disabled={pending || !agreed}>
             {pending ? "Yaratilmoqda..." : "Kafe ochish"}
           </Button>
         </form>
