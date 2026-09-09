@@ -23,6 +23,7 @@ type Cafe = {
   servicePolygon: { lat: number; lng: number }[] | null;
   locationUrl: string | null;
   workingHours: string | null;
+  estimatedDeliveryTime: string | null;
   contactPhone: string | null;
   instagramUrl: string | null;
   telegramUrl: string | null;
@@ -71,6 +72,7 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
         servicePolygon: serviceMode === "polygon" ? polygon : null,
         locationUrl: String(formData.get("locationUrl") ?? ""),
         workingHours: String(formData.get("workingHours") ?? ""),
+        estimatedDeliveryTime: String(formData.get("estimatedDeliveryTime") ?? ""),
         contactPhone: String(formData.get("contactPhone") ?? ""),
         instagramUrl: String(formData.get("instagramUrl") ?? ""),
         telegramUrl: String(formData.get("telegramUrl") ?? ""),
@@ -147,6 +149,18 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
             <div className="space-y-1.5">
               <Label htmlFor="workingHours">Ish vaqti</Label>
               <Input id="workingHours" name="workingHours" defaultValue={cafe.workingHours ?? ""} placeholder="09:00 - 23:00" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="estimatedDeliveryTime">Taxminiy yetkazib berish vaqti (ixtiyoriy)</Label>
+              <Input
+                id="estimatedDeliveryTime"
+                name="estimatedDeliveryTime"
+                defaultValue={cafe.estimatedDeliveryTime ?? ""}
+                placeholder="15-25 daqiqa"
+              />
+              <p className="text-xs text-muted-foreground">
+                Buyurtma sahifasida badge sifatida ko&apos;rsatiladi. Bo&apos;sh qoldirilsa, chiqmaydi.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="contactPhone">Telefon (+998...)</Label>

@@ -276,6 +276,7 @@ export async function getPublicMenu(cafeSlug: string) {
       bannerUrl: true,
       address: true,
       workingHours: true,
+      estimatedDeliveryTime: true,
       deliveryFee: true,
       minOrderTotal: true,
     },

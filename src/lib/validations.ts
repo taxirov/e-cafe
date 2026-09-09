@@ -116,6 +116,7 @@ export const updateCafeContactSchema = z.object({
   servicePolygon: optionalServicePolygon,
   locationUrl: optionalUrl,
   workingHours: z.string().max(200, "Ish vaqti 200 ta belgidan oshmasligi kerak").optional().nullable(),
+  estimatedDeliveryTime: z.string().max(50, "50 ta belgidan oshmasligi kerak").optional().nullable(),
   contactPhone: optionalPhone,
   instagramUrl: optionalUrl,
   telegramUrl: optionalUrl,

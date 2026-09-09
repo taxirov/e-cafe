@@ -19,6 +19,7 @@ export default async function OwnerSettingsPage() {
           servicePolygon: cafe.servicePolygon as { lat: number; lng: number }[] | null,
           locationUrl: cafe.locationUrl,
           workingHours: cafe.workingHours,
+          estimatedDeliveryTime: cafe.estimatedDeliveryTime,
           contactPhone: cafe.contactPhone,
           instagramUrl: cafe.instagramUrl,
           telegramUrl: cafe.telegramUrl,
