@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LegalPage } from "@/components/legal-page";
 
 export const metadata = { title: "Kafe egasi uchun ommaviy oferta — e-cafe.uz" };
@@ -76,7 +77,7 @@ export default function OwnerOfferPage() {
       <h2>9. Maxfiylik</h2>
       <p>
         Kafe va uning mijozlariga oid ma&apos;lumotlarning qayta ishlanishi{" "}
-        <a href="/privacy" className="underline underline-offset-4">Maxfiylik siyosati</a>ga muvofiq
+        <Link href="/privacy" className="underline underline-offset-4">Maxfiylik siyosati</Link>ga muvofiq
         amalga oshiriladi.
       </p>
 

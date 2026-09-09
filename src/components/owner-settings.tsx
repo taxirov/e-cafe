@@ -10,12 +10,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { LocationPicker } from "@/components/location-picker";
 import type { ServiceMode } from "@/components/location-picker-inner";
+import { ImageUpload } from "@/components/image-upload";
 import { updateCafeIdentity, updateCafeContact } from "@/actions/cafes";
 
 type Cafe = {
   name: string;
   slug: string;
   description: string | null;
+  logoUrl: string | null;
+  bannerUrl: string | null;
   address: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -55,6 +58,8 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
         name: String(formData.get("name") ?? ""),
         description: String(formData.get("description") ?? ""),
         slug: String(formData.get("slug") ?? ""),
+        logoUrl: String(formData.get("logoUrl") ?? ""),
+        bannerUrl: String(formData.get("bannerUrl") ?? ""),
       });
       if (!result.ok) setIdentityError(result.error);
       else router.refresh();
@@ -93,6 +98,10 @@ export function OwnerSettings({ cafe }: { cafe: Cafe }) {
         </CardHeader>
         <CardContent>
           <form action={submitIdentity} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <ImageUpload name="logoUrl" defaultUrl={cafe.logoUrl} label="Logotip" />
+              <ImageUpload name="bannerUrl" defaultUrl={cafe.bannerUrl} label="Banner" />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="name">Nomi</Label>
               <Input id="name" name="name" defaultValue={cafe.name} required />

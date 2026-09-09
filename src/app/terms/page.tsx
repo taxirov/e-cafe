@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LegalPage } from "@/components/legal-page";
 
 export const metadata = { title: "Foydalanish shartlari — e-cafe.uz" };
@@ -44,7 +45,7 @@ export default function TermsPage() {
       <h2>5. Hisobni cheklash yoki yopish</h2>
       <p>
         Ushbu Shartlar yoki{" "}
-        <a href="/offer" className="underline underline-offset-4">Kafe egasi uchun ommaviy oferta</a>{" "}
+        <Link href="/offer" className="underline underline-offset-4">Kafe egasi uchun ommaviy oferta</Link>{" "}
         buzilgan taqdirda, Platforma foydalanuvchi hisobini ogohlantirishsiz cheklash yoki yopish
         huquqini o&apos;zida saqlaydi.
       </p>

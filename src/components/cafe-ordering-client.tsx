@@ -30,6 +30,8 @@ type PublicCafe = {
   id: string;
   name: string;
   description: string | null;
+  logoUrl: string | null;
+  bannerUrl: string | null;
   address: string | null;
   workingHours: string | null;
   deliveryFee: unknown;
@@ -111,9 +113,20 @@ export function CafeOrderingClient({
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-2xl flex-col pb-24">
-      <div className="border-b bg-muted/20 px-4 py-5">
-        <h1 className="text-2xl font-bold">{cafe.name}</h1>
-        {cafe.description && <p className="mt-1 text-sm text-muted-foreground">{cafe.description}</p>}
+      <div className="border-b bg-muted/20">
+        {cafe.bannerUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cafe.bannerUrl} alt="" className="h-32 w-full object-cover sm:h-44" />
+        )}
+        <div className="px-4 py-5">
+          <div className="flex items-center gap-3">
+            {cafe.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={cafe.logoUrl} alt="" className="size-12 shrink-0 rounded-full border bg-background object-cover" />
+            )}
+            <h1 className="text-2xl font-bold">{cafe.name}</h1>
+          </div>
+          {cafe.description && <p className="mt-1 text-sm text-muted-foreground">{cafe.description}</p>}
         <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
           {cafe.address && (
             <span className="flex items-center gap-1">
@@ -137,6 +150,7 @@ export function CafeOrderingClient({
             </TabsList>
           </Tabs>
         )}
+        </div>
       </div>
 
       <div className="flex-1 space-y-6 px-4 py-5">
