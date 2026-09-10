@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "e-cafe.uz — Kafelar uchun QR-buyurtma va POS",
-  description: "Kafe va restoranlar QR-stol, ofitsiant POS va oshxona ekranini bir joyda, real vaqtda boshqaradi.",
+  title: "e-cafe.uz — Kafelar uchun QR-buyurtma tizimi",
+  description: "Kafe va restoranlar QR-stol, ofitsiant kassasi va oshxona ekranini bir joyda, bir zumda boshqaradi.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
