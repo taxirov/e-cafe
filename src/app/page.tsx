@@ -22,11 +22,11 @@ export default function HomePage() {
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-10 px-6 py-16 text-center">
         <div className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Kafe va restoranlar uchun <span className="text-brand">real vaqtli</span> buyurtma tizimi
+            Kafe va restoranlar uchun <span className="text-brand">tezkor</span> buyurtma tizimi
           </h1>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-            QR-stol orqali mijoz o&apos;zi buyurtma beradi, ofitsiant POS&apos;dan kiritadi, oshxona ekranida darhol
-            ko&apos;radi — barchasi websocket orqali bir zumda sinxron.
+            QR-stol orqali mijoz o&apos;zi buyurtma beradi, ofitsiant kassadan kiritadi, oshxona ekranida darhol
+            ko&apos;radi — hammasi bir zumda yangilanadi.
           </p>
           <Button size="lg" render={<Link href="/register" />} nativeButton={false}>
             Bepul boshlash
@@ -45,14 +45,14 @@ export default function HomePage() {
             <CardHeader>
               <ChefHat className="size-6 text-brand" />
               <CardTitle className="text-base">Oshxona ekrani</CardTitle>
-              <CardDescription>Yangi buyurtmalar oshpazga darhol, real vaqtda tushadi — qog&apos;ozsiz.</CardDescription>
+              <CardDescription>Yangi buyurtmalar oshpazga darhol tushadi — qog&apos;ozsiz.</CardDescription>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
               <Radio className="size-6 text-brand" />
-              <CardTitle className="text-base">To&apos;liq realtime</CardTitle>
-              <CardDescription>Websocket orqali stol, buyurtma va oshxona holati barcha ekranlarda bir zumda yangilanadi.</CardDescription>
+              <CardTitle className="text-base">Bir zumda yangilanish</CardTitle>
+              <CardDescription>Stol, buyurtma va oshxona holati barcha ekranlarda darhol yangilanib turadi.</CardDescription>
             </CardHeader>
           </Card>
         </div>
